@@ -4,7 +4,7 @@ import re
 _INVALID = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _WS = re.compile(r"\s+")
 # 样本码段：含字母与数字、总长 >=4、仅字母/数字/连字符（- 为码内连字符）。
-# 文件名以下划线/_分隔出各"单词"（qPCR、IL6、v01 等注释段不含该形态，故不命中）。
+# 解析为尽力而为：day7、rep1 等短"字母+数字"token 也可能命中；实践中优先真实连字符样本码。
 _SAMPLE = re.compile(r"(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9-]{4,}", re.I)
 _PURE_CODE = re.compile(r"\b(?:EXP|P)\d{2,4}\b", re.I)
 _WORD = re.compile(r"[_\s]+")
@@ -14,7 +14,8 @@ def folder_slug(label: str) -> str:
     """把展示名转为 Windows 合法文件夹名：去空白、非法字符。保留中文。"""
     s = _INVALID.sub("", label or "")
     s = _WS.sub("", s)
-    return s.strip() or "untitled"
+    s = s.strip().rstrip(".")
+    return s or "untitled"
 
 
 def unique_name(name: str, existing: list[str]) -> str:
@@ -31,6 +32,8 @@ def unique_name(name: str, existing: list[str]) -> str:
 
 def parse_sample_hint(filename: str) -> str:
     """尽力从文件名提样本码（如 SA-MLOY4-001），没有则返回空；纯实验编号(EXP/P+数字)跳过。"""
+    if not filename:
+        return ""
     stem = filename.rsplit(".", 1)[0]
     for token in _WORD.split(stem):
         if _PURE_CODE.search(token):

@@ -24,3 +24,19 @@ def test_unique_path_appends_number():
 def test_parse_sample_hint():
     assert naming.parse_sample_hint("qPCR_SA-MLOY4-001_IL6_v01.xlsx") == "SA-MLOY4-001"
     assert naming.parse_sample_hint("随便命名.txt") == ""
+
+
+def test_parse_sample_hint_exp_code_alone_returns_empty():
+    assert naming.parse_sample_hint("EXP024.txt") == ""
+
+
+def test_parse_sample_hint_skips_pure_code_and_continues():
+    assert naming.parse_sample_hint("EXP024_SA-MLOY4-001.xlsx") == "SA-MLOY4-001"
+
+
+def test_folder_slug_strips_trailing_dot():
+    assert naming.folder_slug("3A.") == "3A"
+
+
+def test_parse_sample_hint_none_returns_empty():
+    assert naming.parse_sample_hint(None) == ""
