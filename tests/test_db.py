@@ -34,3 +34,48 @@ def test_file_and_log_query():
                     ext="xlsx", size=1, sha256="aa")
         files = db.search_files(con, "a.xlsx")
         assert len(files) == 1
+
+
+def test_delete_figure_cascades_subtree_and_sets_file_node_null():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="C1", name="c")
+        fig = db.create_node(con, wid, "figure", "Figure 1", "x")
+        pan = db.create_node(con, wid, "panel", "3A", "y", parent_id=fig)
+        db.add_file(con, wid, node_id=pan, rel_path="Figure1/3A/a.txt", name="a.txt",
+                    ext="txt", size=1, sha256="aa")
+        db.delete_node(con, fig)
+    with db.conn() as con:
+        assert db.get_node(con, fig) is None
+        assert db.get_node(con, pan) is None
+        f = con.execute("SELECT * FROM file_item").fetchall()
+        assert len(f) == 1 and f[0]["node_id"] is None
+
+
+def test_remove_tag_removes_link():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="C2", name="c")
+        nid = db.create_node(con, wid, "figure", "Figure 1", "x")
+        db.add_tag(con, nid, "IL6")
+        db.remove_tag(con, nid, "IL6")
+        assert db.node_tags(con, nid) == []
+
+
+def test_preview_rel_roundtrip():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="C3", name="c")
+        nid = db.create_node(con, wid, "figure", "Figure 1", "x")
+        db.update_node(con, nid, preview_rel="Figure1/preview.png")
+    with db.conn() as con:
+        assert db.get_node(con, nid)["preview_rel"] == "Figure1/preview.png"
+
+
+def test_workspace_delete_cascades_nodes():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="C4", name="c")
+        db.create_node(con, wid, "figure", "Figure 1", "x")
+        db.add_file(con, wid, node_id=None, rel_path="原始数据/a.bin", name="a.bin",
+                    ext="bin", size=1, sha256="aa")
+        con.execute("DELETE FROM workspace WHERE id=?", (wid,))
+    with db.conn() as con:
+        assert con.execute("SELECT COUNT(*) c FROM node").fetchone()["c"] == 0
+        assert con.execute("SELECT COUNT(*) c FROM file_item").fetchone()["c"] == 0
