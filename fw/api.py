@@ -228,3 +228,60 @@ async def save_preview(nid: int, file: UploadFile = File(...)):
         rel = storage.save_upload(ws_folder, data, "preview.png", dest_rel=dest_rel)
         db.update_node(con, nid, preview_rel=rel)
         return {"ok": True, "preview_rel": rel}
+
+
+# ---------------- tags / search ----------------
+@router.post("/nodes/{nid}/tags")
+def add_tag(nid: int, body: dict):
+    tag = (body.get("tag") or "").strip()
+    if not tag:
+        raise HTTPException(400, "空标签")
+    with db.conn() as con:
+        if not db.get_node(con, nid):
+            raise HTTPException(404)
+        db.add_tag(con, nid, tag)
+        return {"tags": [t["name"] for t in db.node_tags(con, nid)]}
+
+
+@router.delete("/nodes/{nid}/tags/{tag}")
+def del_tag(nid: int, tag: str):
+    with db.conn() as con:
+        if not db.get_node(con, nid):
+            raise HTTPException(404)
+        db.remove_tag(con, nid, tag)
+    return {"ok": True}
+
+
+@router.get("/search")
+def search(q: str = ""):
+    q = q.strip()
+    if not q:
+        return {"results": []}
+    like = f"%{q}%"
+    results = []
+    with db.conn() as con:
+        for ws in con.execute("SELECT * FROM workspace WHERE code LIKE ? OR name LIKE ?",
+                              (like, like)).fetchall():
+            results.append({"type": "workspace", "workspace_code": ws["code"],
+                            "label": ws["name"], "node_id": None, "tag": None, "file_id": None})
+        for tag in con.execute("SELECT t.name, nt.node_id FROM tag t "
+                               "JOIN node_tag nt ON nt.tag_id=t.id "
+                               "WHERE t.name LIKE ? LIMIT 50", (like,)).fetchall():
+            results.append({"type": "tag", "workspace_code": None, "label": tag["name"],
+                            "node_id": tag["node_id"], "tag": tag["name"], "file_id": None})
+        for n in con.execute("SELECT * FROM node WHERE label LIKE ? OR title LIKE ? LIMIT 50",
+                             (like, like)).fetchall():
+            results.append({"type": "node", "workspace_code": None,
+                            "label": f"{n['label']} {n['title']}".strip(),
+                            "node_id": n["id"], "tag": None, "file_id": None})
+        for f in con.execute("SELECT * FROM file_item WHERE name LIKE ? LIMIT 50",
+                             (like,)).fetchall():
+            results.append({"type": "file", "workspace_code": None, "label": f["name"],
+                            "node_id": f["node_id"], "tag": None, "file_id": f["id"]})
+        for r in results:
+            if r["node_id"]:
+                n = db.get_node(con, r["node_id"])
+                if n:
+                    ws = db.get_workspace(con, n["workspace_id"])
+                    r["workspace_code"] = ws["code"] if ws else None
+    return {"results": results}
