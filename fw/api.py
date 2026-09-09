@@ -219,6 +219,8 @@ async def save_preview(nid: int, file: UploadFile = File(...)):
             raise HTTPException(404)
         ws = db.get_workspace(con, n["workspace_id"])
         ws_folder = storage.workspace_folder(ws["code"])
+        if n["preview_rel"]:
+            storage.move_to_trash(ws_folder, n["preview_rel"])
         if n["kind"] == "figure":
             dest_rel = storage.figure_folder(ws["code"], n["label"]).relative_to(ws_folder).as_posix()
         else:

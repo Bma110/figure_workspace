@@ -39,3 +39,16 @@ def test_paste_preview(client):
     assert r.status_code == 200
     node = client.get(f"/api/nodes/{nid}").json()["node"]
     assert node["preview_rel"] == "Figure1/preview.png"
+
+
+def test_upload_to_panel_lands_under_figure_subfolder(client):
+    client.post("/api/workspaces", json={"code": "P5", "name": "p"})
+    fig = client.post("/api/workspaces/P5/nodes", json={"kind": "figure", "label": "Figure 2",
+                                                        "title": "x"}).json()["node"]
+    pid = client.post("/api/workspaces/P5/nodes", json={"kind": "panel", "label": "2A",
+                                                        "parent_id": fig["id"]}).json()["node"]["id"]
+    r = client.post(f"/api/nodes/{pid}/files",
+                    files={"file": ("IL6.xlsx", b"xyz", "text/plain")})
+    assert r.status_code == 200
+    from fw import config
+    assert (config.root_dir() / "P5" / "Figure2" / "2A" / "IL6.xlsx").exists()
