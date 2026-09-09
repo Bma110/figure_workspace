@@ -1,6 +1,8 @@
 """FastAPI 路由。相对路径基于工作区文件夹。"""
-import sqlite3
+import csv
 import shutil
+import sqlite3
+import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
@@ -340,3 +342,30 @@ def apply_scan(code: str, body: dict):
                         size=src.stat().st_size, sha256=storage.sha256_file(src))
             created.append({"id": nid, "label": label})
     return {"created": created}
+
+
+# ---------------- backup ----------------
+@router.post("/backup")
+def run_backup(backup_dir: str = ""):
+    """备份：复制 SQLite db 到 target，并生成全量 file_item 清单 manifest.csv。"""
+    from fw import config
+    target = Path(backup_dir) if backup_dir else (config.root_dir().parent / "backups")
+    target.mkdir(parents=True, exist_ok=True)
+    db_src = config.db_path()
+    if db_src.exists():
+        shutil.copy2(str(db_src), str(target / f"fw_{int(time.time())}.db"))
+    manifest = []
+    with db.conn() as con:
+        for f in con.execute("SELECT * FROM file_item").fetchall():
+            ws = db.get_workspace(con, f["workspace_id"])
+            p = storage.workspace_folder(ws["code"]) / f["rel_path"]
+            manifest.append({"name": f["name"], "rel": f["rel_path"],
+                             "workspace": ws["code"], "exists": p.exists()})
+        # manifest.csv: header workspace,rel_path,name,exists — use csv module so
+        # names/rels containing commas or quotes stay well-formed.
+        with (target / "manifest.csv").open("w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["workspace", "rel_path", "name", "exists"])
+            for m in manifest:
+                w.writerow([m["workspace"], m["rel"], m["name"], m["exists"]])
+    return {"backup_dir": str(target), "manifest_count": len(manifest)}
