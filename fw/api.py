@@ -1,4 +1,5 @@
 """FastAPI 路由。相对路径基于工作区文件夹。"""
+import sqlite3
 from fastapi import APIRouter, HTTPException
 from fw import db, storage, naming
 
@@ -22,7 +23,7 @@ def create_workspace(body: dict):
     try:
         with db.conn() as con:
             wid = db.create_workspace(con, code=slug, name=name)
-    except Exception:
+    except sqlite3.IntegrityError:
         raise HTTPException(409, f"工作区 {slug} 已存在")
     storage.workspace_folder(slug)
     return {"workspace": {"id": wid, "code": slug, "name": name}}
@@ -64,12 +65,12 @@ def create_node(code: str, body: dict):
         ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
         if not ws:
             raise HTTPException(404)
-        if kind == "figure":
-            storage.figure_folder(code, label)          # 建图即建夹
-        elif parent_id is not None:
+        if parent_id is not None:
             par = db.get_node(con, parent_id)
             if not par or par["workspace_id"] != ws["id"]:
                 raise HTTPException(400, "parent 不存在于本工作区")
+        if kind == "figure":
+            storage.figure_folder(code, label)          # 建图即建夹
         nid = db.create_node(con, ws["id"], kind=kind, label=label, title=title,
                              parent_id=parent_id)
         node = db.get_node(con, nid)
@@ -85,6 +86,9 @@ def patch_node(nid: int, body: dict):
     if "importance" in clean and clean["importance"] not in ("key", "normal", "aux"):
         raise HTTPException(400, "bad importance")
     with db.conn() as con:
+        node = db.get_node(con, nid)
+        if not node:
+            raise HTTPException(404)
         db.update_node(con, nid, **clean)
         return {"node": dict(db.get_node(con, nid))}
 

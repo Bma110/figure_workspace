@@ -33,3 +33,18 @@ def test_patch_node(client):
                                                 "note": "定稿"})
     assert r.status_code == 200
     assert r.json()["node"]["status"] == "adopted"
+
+
+def test_patch_missing_node_404(client):
+    r = client.patch("/api/nodes/999999", json={"status": "adopted"})
+    assert r.status_code == 404
+
+
+def test_figure_with_cross_workspace_parent_400(client):
+    _ws(client)
+    client.post("/api/workspaces", json={"code": "B", "name": "另一项目"})
+    nid = client.post("/api/workspaces/B/nodes", json={"kind": "figure", "label": "Figure 9",
+                                                      "title": "x"}).json()["node"]["id"]
+    r = client.post("/api/workspaces/P001/nodes", json={"kind": "figure", "label": "Figure 1",
+                                                        "parent_id": nid})
+    assert r.status_code == 400
