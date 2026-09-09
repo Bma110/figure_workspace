@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
-from fw import db, storage, naming
+from fw import db, storage, naming, config
 
 router = APIRouter(prefix="/api")
 
@@ -348,18 +348,19 @@ def apply_scan(code: str, body: dict):
 @router.post("/backup")
 def run_backup(backup_dir: str = ""):
     """备份：复制 SQLite db 到 target，并生成全量 file_item 清单 manifest.csv。"""
-    from fw import config
     target = Path(backup_dir) if backup_dir else (config.root_dir().parent / "backups")
     target.mkdir(parents=True, exist_ok=True)
     db_src = config.db_path()
     if db_src.exists():
-        shutil.copy2(str(db_src), str(target / f"fw_{int(time.time())}.db"))
+        db_name = naming.unique_name(f"fw_{int(time.time())}.db",
+                                     [p.name for p in target.glob("fw_*.db")])
+        shutil.copy2(str(db_src), str(target / db_name))
     manifest = []
     with db.conn() as con:
         for f in con.execute("SELECT * FROM file_item").fetchall():
             ws = db.get_workspace(con, f["workspace_id"])
-            p = storage.workspace_folder(ws["code"]) / f["rel_path"]
-            manifest.append({"name": f["name"], "rel": f["rel_path"],
+            p = config.root_dir() / ws["code"] / f["rel_path"]
+            manifest.append({"name": f["name"], "rel_path": f["rel_path"],
                              "workspace": ws["code"], "exists": p.exists()})
         # manifest.csv: header workspace,rel_path,name,exists — use csv module so
         # names/rels containing commas or quotes stay well-formed.
@@ -367,5 +368,5 @@ def run_backup(backup_dir: str = ""):
             w = csv.writer(fh)
             w.writerow(["workspace", "rel_path", "name", "exists"])
             for m in manifest:
-                w.writerow([m["workspace"], m["rel"], m["name"], m["exists"]])
+                w.writerow([m["workspace"], m["rel_path"], m["name"], m["exists"]])
     return {"backup_dir": str(target), "manifest_count": len(manifest)}
