@@ -1,8 +1,13 @@
 """对「已采用」节点生成 SourceData 清单 / 图注草稿 / 数据可得性骨架。
 
-导出只纳入 status='adopted' 的内容。figure 是其面板的容器：某 figure 采用即整幅采用，
-其下面板若也采用则并入父 figure 导出行（不单独重复成行）；父 figure 未采用时，孤立的
-采用面板仍单独导出。data_availability 的计数取采用 figure 数。"""
+投稿导出以 status='adopted' 为门槛，figure 是整幅进稿的容器：
+- legend_draft 只列已采用 figure，并把其全部子面板（状态仅供参考）作为缩进行，
+  因为 figure 采用即整幅（含其面板）进入投稿。
+- source_data 每行一个导出口径根：已采用 figure 行并入其自身及同样已采用子面板的
+  源文件（候选/弃用面板文件不进入 SourceData）；父 figure 未采用时，孤立的已采用
+  panel 单独成行。
+- data_availability 的计数取已采用 figure 数。
+"""
 from fw import db
 
 

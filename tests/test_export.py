@@ -63,6 +63,7 @@ def test_source_data_folds_adopted_child_into_figure_row():
         rows = export.source_data(con, wid)
         # RelativePath 列会回显文件名，故按完整路径计数：该文件只列一行（并入父 Figure 行，无重复 1A 行）
         assert rows.count("F1/panelA.xlsx") == 1
+        assert "Figure 1,panelA.xlsx,F1/panelA.xlsx,pA,1" in rows  # 逐字整行：证明并入父行，而非孤儿单独成行
 
 
 def test_legend_draft_excludes_non_adopted_figure():
@@ -70,3 +71,17 @@ def test_legend_draft_excludes_non_adopted_figure():
         wid = _seed_mixed(con)
         text = export.legend_draft(con, wid)
         assert "Figure 1" in text and "Figure 2" not in text
+
+
+def test_source_data_orphan_adopted_panel_exports():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="O", name="O 项目")
+        cand_fig = db.create_node(con, wid, "figure", "Figure 9", "未采用父", status="candidate")
+        orphan = db.create_node(con, wid, "panel", "9B", "", parent_id=cand_fig, status="adopted")
+        db.add_file(con, wid, node_id=orphan, rel_path="F9/panelB.xlsx", name="panelB.xlsx",
+                    ext="xlsx", size=1, sha256="pB")
+        db.add_file(con, wid, node_id=cand_fig, rel_path="F9/figfile.xlsx", name="figfile.xlsx",
+                    ext="xlsx", size=1, sha256="f9")
+        rows = export.source_data(con, wid)
+        assert "panelB.xlsx" in rows
+        assert "figfile.xlsx" not in rows  # 候选父 figure 的文件不进 SourceData
