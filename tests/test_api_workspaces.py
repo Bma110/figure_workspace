@@ -19,3 +19,8 @@ def test_archive(client):
     client.post("/api/workspaces", json={"code": "A", "name": "a"})
     client.post("/api/workspaces/A/archive")
     assert client.get("/api/workspaces/A").json()["workspace"]["archived"] == 1
+
+
+def test_create_empty_code_400(client):
+    r = client.post("/api/workspaces", json={"code": "   ", "name": "x"})
+    assert r.status_code == 400

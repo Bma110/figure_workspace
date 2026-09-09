@@ -16,9 +16,9 @@ def list_workspaces():
 def create_workspace(body: dict):
     code = (body.get("code") or "").strip()
     name = (body.get("name") or "").strip() or code
-    slug = naming.folder_slug(code)
-    if not slug:
+    if not code:
         raise HTTPException(400, "code 不能为空")
+    slug = naming.folder_slug(code)
     try:
         with db.conn() as con:
             wid = db.create_workspace(con, code=slug, name=name)
