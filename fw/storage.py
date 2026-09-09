@@ -30,16 +30,35 @@ def _list_names(folder: Path) -> list[str]:
     return [x.name for x in folder.iterdir()] if folder.exists() else []
 
 
+def _basename(filename: str) -> str:
+    """取末段文件名，容忍 '/' 与 '\\' 分隔，拒绝空/./.. 及含 '..' 段的越界路径。"""
+    norm = filename.replace("\\", "/")
+    if ".." in norm.split("/"):
+        raise ValueError("非法文件名")
+    name = norm.rsplit("/", 1)[-1].strip()
+    if name in ("", ".", ".."):
+        raise ValueError("非法文件名")
+    return name
+
+
+def _dest_dir(ws_folder: Path, dest_rel: str) -> Path:
+    ws = ws_folder.resolve()
+    if not dest_rel:
+        return ws
+    rel = dest_rel.replace("\\", "/")
+    target = (ws / rel).resolve()
+    if not target.is_relative_to(ws):
+        raise ValueError("dest_rel 越界")
+    return target
+
+
 def save_upload(ws_folder: Path, data: bytes, filename: str, dest_rel: str = "") -> str:
     """把字节写入 ws_folder 下（dest_rel 为空则根，否则 dest_rel 目录）。返回相对路径。"""
-    dest = ws_folder
-    if dest_rel:
-        dest = ws_folder / dest_rel
-    dest.mkdir(parents=True, exist_ok=True)
-    fname = naming.unique_name(filename, _list_names(dest))
-    (dest / fname).write_bytes(data)
-    rel = (Path(dest_rel) / fname).as_posix() if dest_rel else fname
-    return rel
+    target_dir = _dest_dir(ws_folder, dest_rel)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    fname = naming.unique_name(_basename(filename), _list_names(target_dir))
+    (target_dir / fname).write_bytes(data)
+    return Path(dest_rel or "").joinpath(fname).as_posix()
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -55,10 +74,13 @@ def sha256_file(path: Path) -> str:
 
 
 def move_to_trash(ws_folder: Path, rel_path: str):
-    src = ws_folder / rel_path
-    trash = ws_folder / ".trash"
-    trash.mkdir(exist_ok=True)
-    if not src.exists():
+    if not rel_path or rel_path in (".", ".."):
         return
+    ws = ws_folder.resolve()
+    src = (ws / rel_path).resolve()
+    if not src.is_relative_to(ws) or not src.is_file():
+        return
+    trash = ws / ".trash"
+    trash.mkdir(exist_ok=True)
     dest_name = naming.unique_name(src.name, _list_names(trash))
     shutil.move(str(src), str(trash / dest_name))
