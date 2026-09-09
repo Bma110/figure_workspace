@@ -54,11 +54,12 @@ def _dest_dir(ws_folder: Path, dest_rel: str) -> Path:
 
 def save_upload(ws_folder: Path, data: bytes, filename: str, dest_rel: str = "") -> str:
     """把字节写入 ws_folder 下（dest_rel 为空则根，否则 dest_rel 目录）。返回相对路径。"""
-    target_dir = _dest_dir(ws_folder, dest_rel)
+    ws = ws_folder.resolve()
+    target_dir = _dest_dir(ws, dest_rel)
     target_dir.mkdir(parents=True, exist_ok=True)
     fname = naming.unique_name(_basename(filename), _list_names(target_dir))
     (target_dir / fname).write_bytes(data)
-    return Path(dest_rel or "").joinpath(fname).as_posix()
+    return target_dir.relative_to(ws).joinpath(fname).as_posix()
 
 
 def sha256_bytes(data: bytes) -> str:

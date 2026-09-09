@@ -73,3 +73,10 @@ def test_sha256_file_roundtrip():
     data = b"round trip bytes"
     p.write_bytes(data)
     assert storage.sha256_file(p) == storage.sha256_bytes(data)
+
+
+def test_save_upload_returns_clean_rel_for_redundant_dest():
+    wf = storage.workspace_folder("P8")
+    rel = storage.save_upload(wf, b"x", "a.txt", dest_rel="Figure1/../Figure1")
+    assert rel == "Figure1/a.txt"
+    assert (wf / "Figure1" / "a.txt").exists()
