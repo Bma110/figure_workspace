@@ -1,6 +1,8 @@
 """FastAPI 路由。相对路径基于工作区文件夹。"""
 import sqlite3
-from fastapi import APIRouter, HTTPException
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from fw import db, storage, naming
 
 router = APIRouter(prefix="/api")
@@ -114,3 +116,113 @@ def delete_node(nid: int):
             raise HTTPException(404)
         db.delete_node(con, nid)
     return {"ok": True}
+
+
+# ---------------- files / preview ----------------
+@router.get("/nodes/{nid}")
+def get_node(nid: int):
+    with db.conn() as con:
+        n = db.get_node(con, nid)
+        if not n:
+            raise HTTPException(404)
+        d = dict(n)
+        d["files"] = [dict(x) for x in db.node_files(con, nid)]
+        d["logs"] = [dict(x) for x in db.node_logs(con, nid)]
+        d["tags"] = [x["name"] for x in db.node_tags(con, nid)]
+        return {"node": d}
+
+
+def _upload_to(con, ws, node_id, data: bytes, filename: str, dest_rel: str):
+    """复制字节到 ws 文件夹下的 dest_rel，写 file_item，返回新记录。ws 为 workspace Row。"""
+    ws_folder = storage.workspace_folder(ws["code"])
+    rel = storage.save_upload(ws_folder, data, filename, dest_rel=dest_rel)
+    fid = db.add_file(con, ws["id"], node_id=node_id, rel_path=rel, name=Path(rel).name,
+                      ext=Path(rel).suffix.lstrip(".").lower(), size=len(data),
+                      sha256=storage.sha256_bytes(data),
+                      sample_note=naming.parse_sample_hint(filename))
+    return db.get_file(con, fid)
+
+
+def _figure_ancestor(con, nid):
+    """向上找最近的 figure 祖先（含本节点）。返回 Row 或 None。"""
+    return con.execute(
+        "WITH RECURSIVE up(id,parent_id,label,kind) AS ("
+        " SELECT id,parent_id,label,kind FROM node WHERE id=? "
+        " UNION ALL SELECT n.id,n.parent_id,n.label,n.kind FROM node n "
+        " JOIN up ON n.id=up.parent_id) SELECT id,label FROM up WHERE kind='figure' LIMIT 1",
+        (nid,)).fetchone()
+
+
+@router.post("/nodes/{nid}/files")
+async def upload_node_file(nid: int, file: UploadFile = File(...)):
+    data = await file.read()
+    filename = file.filename or "file"
+    with db.conn() as con:
+        n = db.get_node(con, nid)
+        if not n:
+            raise HTTPException(404)
+        ws = db.get_workspace(con, n["workspace_id"])
+        ws_folder = storage.workspace_folder(ws["code"])
+        if n["kind"] == "figure":
+            dest_rel = storage.figure_folder(ws["code"], n["label"]).relative_to(ws_folder).as_posix()
+        else:
+            fig = _figure_ancestor(con, nid)
+            dest_rel = (storage.panel_folder(ws["code"], fig["label"], n["label"])
+                        .relative_to(ws_folder).as_posix()) if fig else ""
+        _upload_to(con, ws, nid, data, filename, dest_rel)
+        return {"files": [dict(x) for x in db.node_files(con, nid)]}
+
+
+@router.post("/workspaces/{code}/files")
+async def upload_raw_file(code: str, file: UploadFile = File(...)):
+    data = await file.read()
+    filename = file.filename or "file"
+    with db.conn() as con:
+        ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
+        if not ws:
+            raise HTTPException(404)
+        _upload_to(con, ws, None, data, filename, "原始数据")
+        return {"files": [dict(f) for f in db.raw_files(con, ws["id"])]}
+
+
+@router.get("/files/{fid}")
+def download_file(fid: int):
+    with db.conn() as con:
+        f = db.get_file(con, fid)
+        if not f:
+            raise HTTPException(404)
+        ws = db.get_workspace(con, f["workspace_id"])
+        path = storage.workspace_folder(ws["code"]) / f["rel_path"]
+    if not path.exists():
+        raise HTTPException(410, "文件已被移动/删除")
+    return FileResponse(str(path), filename=f["name"])
+
+
+@router.delete("/files/{fid}")
+def delete_file(fid: int):
+    with db.conn() as con:
+        f = db.get_file(con, fid)
+        if not f:
+            raise HTTPException(404)
+        ws = db.get_workspace(con, f["workspace_id"])
+        storage.move_to_trash(storage.workspace_folder(ws["code"]), f["rel_path"])
+        db.delete_file_record(con, fid)
+    return {"ok": True}
+
+
+@router.post("/nodes/{nid}/preview")
+async def save_preview(nid: int, file: UploadFile = File(...)):
+    data = await file.read()
+    with db.conn() as con:
+        n = db.get_node(con, nid)
+        if not n:
+            raise HTTPException(404)
+        ws = db.get_workspace(con, n["workspace_id"])
+        ws_folder = storage.workspace_folder(ws["code"])
+        if n["kind"] == "figure":
+            dest_rel = storage.figure_folder(ws["code"], n["label"]).relative_to(ws_folder).as_posix()
+        else:
+            dest_rel = "原始数据"
+        rel = storage.save_upload(ws_folder, data, "preview.png", dest_rel=dest_rel)
+        db.update_node(con, nid, preview_rel=rel)
+        return {"ok": True, "preview_rel": rel}
