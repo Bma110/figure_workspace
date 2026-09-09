@@ -1,5 +1,6 @@
 """FastAPI 路由。相对路径基于工作区文件夹。"""
 import sqlite3
+import shutil
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
@@ -285,3 +286,57 @@ def search(q: str = ""):
                     ws = db.get_workspace(con, n["workspace_id"])
                     r["workspace_code"] = ws["code"] if ws else None
     return {"results": results}
+
+
+# ---------------- scan import ----------------
+_IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+
+
+@router.post("/workspaces/{code}/scan")
+def scan_folder(code: str, body: dict):
+    folder = Path(body.get("folder_path") or "")
+    if not folder.is_dir():
+        raise HTTPException(400, "folder_path 无效目录")
+    images = []
+    for p in sorted(folder.iterdir()):
+        if p.is_file() and p.suffix.lower() in _IMG_EXT:
+            images.append({"name": p.name, "size": p.stat().st_size,
+                           "sample_hint": naming.parse_sample_hint(p.name)})
+    return {"images": images}
+
+
+@router.post("/workspaces/{code}/scan/import")
+def apply_scan(code: str, body: dict):
+    """把选中的图片导入为 Figure：复制该图作预览并挂为源文件；源目录只读，其它文件不动。"""
+    folder = Path(body.get("folder_path") or "")
+    picks = body.get("picks") or []
+    if not folder.is_dir() or not picks:
+        raise HTTPException(400, "缺 folder_path 或 picks")
+    created = []
+    with db.conn() as con:
+        ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
+        if not ws:
+            raise HTTPException(404)
+        for i, pick in enumerate(picks, start=1):
+            name = pick.get("name") or ""
+            # 仅接受纯文件名，杜绝通过 name 读目录外文件
+            if not name or name in (".", "..") or "/" in name or "\\" in name:
+                continue
+            src = folder / name
+            if not src.is_file():
+                continue
+            label = pick.get("label") or f"Figure {i}"
+            nid = db.create_node(con, ws["id"], kind="figure", label=label, title="")
+            ffolder = storage.figure_folder(code, label)
+            preview_name = naming.unique_name("preview.png",
+                                              [x.name for x in ffolder.iterdir()])
+            shutil.copy2(str(src), str(ffolder / preview_name))
+            rel_dir = ffolder.relative_to(storage.workspace_folder(code))
+            preview_rel = (rel_dir / preview_name).as_posix()
+            db.update_node(con, nid, preview_rel=preview_rel)
+            db.add_file(con, ws["id"], node_id=nid,
+                        rel_path=(rel_dir / preview_name).as_posix(),
+                        name=src.name, ext=src.suffix.lstrip(".").lower(),
+                        size=src.stat().st_size, sha256=storage.sha256_file(src))
+            created.append({"id": nid, "label": label})
+    return {"created": created}
