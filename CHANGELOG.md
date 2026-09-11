@@ -2,6 +2,13 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 变更
+- `启动工作台.bat` 支持自定义数据根目录：优先用环境变量 `FW_ROOT`，本机无 D 盘时自动退回 `%USERPROFILE%\ResearchData`。
+- 新增 `run.sh`（macOS / Linux 启动脚本）。
+- README 补「换一台电脑」：数据迁移步骤、`FW_ROOT` / `FW_DB` 用法、Python ≥ 3.10 要求。
+
 ## [0.1.0] — 2026-09-11（测试版）
 
 首个可自用的测试版。以「论文 Figure」为主体管理原始数据、图文件与溯源，全部本地运行。

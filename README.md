@@ -6,11 +6,50 @@
 
 ## 启动
 
-双击 `启动工作台.bat`。首次运行会自动创建虚拟环境、安装依赖，然后起服务。
+- **Windows**：双击 `启动工作台.bat`
+- **macOS / Linux**：`./run.sh`
 
-打开 <http://127.0.0.1:8000>
+首次运行会自动创建虚拟环境、安装依赖，然后起服务。打开 <http://127.0.0.1:8000>
 
 > 端口被占用时改用命令行：`./.venv/Scripts/python.exe -m uvicorn fw_server:app --host 127.0.0.1 --port 8011`
+
+## 换一台电脑
+
+代码会自举——空仓库克隆下来就能直接跑，首次启动自动建数据库和数据目录。
+
+```bash
+git clone https://github.com/Bma110/figure_workspace.git
+cd figure_workspace
+./run.sh                 # Windows 下双击 启动工作台.bat
+```
+
+注意：
+
+1. **不带数据**。`data/`（数据库）与 `.trash/` 不在版本库里，科研文件也不在——新机器起来是**空工作区**。
+2. **仓库是私有的**，新机器需要能访问 GitHub。
+3. **需要 Python ≥ 3.10**（代码用了 `Path | None` 写法）。
+
+### 数据目录
+
+科研文件的根目录默认 `D:\ResearchData`（Mac/Linux 为 `~/ResearchData`），数据库默认在本目录 `data/fw.db`。两者分别可用 `FW_ROOT` / `FW_DB` 改：
+
+```bat
+set FW_ROOT=E:\ResearchData
+启动工作台.bat
+```
+
+```bash
+FW_ROOT=~/ResearchData ./run.sh
+```
+
+本机没有 D 盘时，`.bat` 会自动退回到 `%USERPROFILE%\ResearchData`。
+
+### 连数据一起搬
+
+除了代码，额外拷贝两样到新机器的对应位置：
+
+- `data/fw.db` → 新机器同路径（或用 `FW_DB` 指向它）
+- 原数据根目录整个拷贝 → 新机器的 `FW_ROOT`
 
 ## 用法速览
 
