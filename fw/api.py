@@ -132,6 +132,7 @@ def get_node(nid: int):
         d["files"] = [dict(x) for x in db.node_files(con, nid)]
         d["logs"] = [dict(x) for x in db.node_logs(con, nid)]
         d["tags"] = [x["name"] for x in db.node_tags(con, nid)]
+        d["ancestors"] = db.ancestors(con, nid)
         return {"node": d}
 
 
@@ -231,6 +232,22 @@ async def save_preview(nid: int, file: UploadFile = File(...)):
         rel = storage.save_upload(ws_folder, data, "preview.png", dest_rel=dest_rel)
         db.update_node(con, nid, preview_rel=rel)
         return {"ok": True, "preview_rel": rel}
+
+
+@router.get("/preview/{code}/{rel:path}")
+def serve_preview(code: str, rel: str):
+    """回传工作区内文件的原始字节，供缩略图 <img> 使用。仅限已登记工作区。"""
+    with db.conn() as con:
+        ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
+    if not ws:
+        raise HTTPException(404)
+    try:
+        path = storage.resolve_in_workspace(storage.workspace_folder(code), rel)
+    except ValueError:
+        raise HTTPException(400, "非法路径")
+    if not path.is_file():
+        raise HTTPException(404, "预览不存在")
+    return FileResponse(str(path))
 
 
 # ---------------- tags / search ----------------

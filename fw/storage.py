@@ -52,6 +52,11 @@ def _dest_dir(ws_folder: Path, dest_rel: str) -> Path:
     return target
 
 
+def resolve_in_workspace(ws_folder: Path, rel_path: str) -> Path:
+    """工作区内相对路径 → 绝对路径。越界抛 ValueError。"""
+    return _dest_dir(ws_folder, rel_path)
+
+
 def save_upload(ws_folder: Path, data: bytes, filename: str, dest_rel: str = "") -> str:
     """把字节写入 ws_folder 下（dest_rel 为空则根，否则 dest_rel 目录）。返回相对路径。"""
     ws = ws_folder.resolve()

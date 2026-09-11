@@ -149,6 +149,17 @@ def tree(con, wid):
     return build(roots)
 
 
+def ancestors(con, nid):
+    """自顶向下的祖先链（不含自身），用于面包屑。"""
+    rows = con.execute(
+        "WITH RECURSIVE up(id,parent_id,label,kind) AS ("
+        " SELECT id,parent_id,label,kind FROM node WHERE id=? "
+        " UNION ALL SELECT n.id,n.parent_id,n.label,n.kind FROM node n "
+        " JOIN up ON n.id=up.parent_id) "
+        "SELECT id,label,kind FROM up WHERE id<>? ORDER BY id", (nid, nid)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def all_tags(con):
     return con.execute("SELECT name FROM tag ORDER BY name").fetchall()
 

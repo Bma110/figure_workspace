@@ -52,3 +52,31 @@ def test_upload_to_panel_lands_under_figure_subfolder(client):
     assert r.status_code == 200
     from fw import config
     assert (config.root_dir() / "P5" / "Figure2" / "2A" / "IL6.xlsx").exists()
+
+
+def test_serve_preview_and_reject_escapes(client):
+    client.post("/api/workspaces", json={"code": "P6", "name": "p"})
+    nid = client.post("/api/workspaces/P6/nodes", json={"kind": "figure", "label": "Figure 1",
+                                                        "title": "x"}).json()["node"]["id"]
+    client.post(f"/api/nodes/{nid}/preview",
+                files={"file": ("preview.png", b"\x89PNGdata", "image/png")})
+    ok = client.get("/api/preview/P6/Figure1/preview.png")
+    assert ok.status_code == 200 and ok.content == b"\x89PNGdata"
+    # 未登记工作区不放行
+    assert client.get("/api/preview/nope/x.png").status_code == 404
+    # 越界：工作区根之外确实存在该文件，仍必须 400（而非放行）
+    from fw import config
+    (config.root_dir().parent / "secret.txt").write_bytes(b"SECRET")
+    esc = client.get("/api/preview/P6/%2e%2e%2f%2e%2e%2fsecret.txt")
+    assert esc.status_code == 400
+
+
+def test_node_returns_ancestors(client):
+    client.post("/api/workspaces", json={"code": "P7", "name": "p"})
+    fig = client.post("/api/workspaces/P7/nodes", json={"kind": "figure", "label": "Figure 3",
+                                                        "title": "x"}).json()["node"]
+    pid = client.post("/api/workspaces/P7/nodes", json={"kind": "panel", "label": "3A",
+                                                        "parent_id": fig["id"]}).json()["node"]["id"]
+    node = client.get(f"/api/nodes/{pid}").json()["node"]
+    assert [a["label"] for a in node["ancestors"]] == ["Figure 3"]
+    assert client.get(f"/api/nodes/{fig['id']}").json()["node"]["ancestors"] == []
