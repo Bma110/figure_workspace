@@ -34,7 +34,7 @@
 
 ## 文档
 
-- [更新日志](CHANGELOG.md)
+- [更新日志](CHANGELOG.md) · [工作记录](docs/dev-log.md)
 - [文档索引](docs/README.md) · [已知问题 / 开发过程记录](docs/known-issues.md)
 
 ## 开发
