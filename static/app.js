@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { view: 'list', wsCode: null, tree: [], selectedNode: null };
+const state = { view: 'list', wsCode: null, tree: [], selectedNode: null, showArchived: false };
 
 async function api(path, opts = {}) {
   let r;
@@ -64,7 +64,8 @@ $('#view-list').addEventListener('click', (e) => {
 
 // ---------------- 看板 ----------------
 async function renderWorkspace() {
-  const { workspace } = await api('/api/workspaces/' + encodeURIComponent(state.wsCode));
+  const q = state.showArchived ? '?show_archived=1' : '';
+  const { workspace } = await api('/api/workspaces/' + encodeURIComponent(state.wsCode) + q);
   state.tree = workspace.tree;
   $('#view-workspace').innerHTML = `
     <div class="ws-head">
@@ -72,12 +73,34 @@ async function renderWorkspace() {
       <b class="ws-title">${esc(workspace.name)}</b>
       <span class="ws-code">${esc(workspace.code)}</span>
       <span class="spacer"></span>
+      <button class="btn" onclick="toggleArchived()">${state.showArchived ? '只显示可见' : '显示已隐藏'}</button>
       <button class="btn" onclick="newFigureModal()">+ 新建 Figure</button>
       <button class="btn" onclick="scanModal()">📥 扫描导入</button>
     </div>
     <div id="figGrid" class="fig-grid"></div>`;
   renderBoard();
 }
+
+window.toggleArchived = function () {
+  state.showArchived = !state.showArchived;
+  renderWorkspace();
+};
+
+window.toggleArchivedNode = async function (id, next) {
+  await api('/api/nodes/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ archived: next }) });
+  state.selectedNode = null;
+  closeDrawer();
+  await renderWorkspace();
+};
+
+window.delNode = async function (id) {
+  if (!confirm('删除该节点？文件夹会移入 .trash（可找回）。')) return;
+  await api('/api/nodes/' + id, { method: 'DELETE' });
+  state.selectedNode = null;
+  closeDrawer();
+  await renderWorkspace();
+};
 
 function renderBoard() {
   const el = $('#figGrid');
@@ -88,11 +111,11 @@ function renderBoard() {
 }
 
 function cardHtml(n) {
-  return `<div class="fig-card s-${esc(n.status)}${state.selectedNode === n.id ? ' selected' : ''}"
+  return `<div class="fig-card s-${esc(n.status)}${state.selectedNode === n.id ? ' selected' : ''}${n.archived ? ' archived' : ''}"
       onclick="selectNode(${n.id})">
     <div class="row-between">
       <b>${esc(n.label)}${n.title ? ' · ' + esc(n.title) : ''}</b>
-      <span class="statchip st-${esc(n.status)}">${ST[n.status] || ''}</span>
+      <span>${n.archived ? '<span class="stagged">已隐藏</span> ' : ''}<span class="statchip st-${esc(n.status)}">${ST[n.status] || ''}</span></span>
     </div>
     <div class="fig-thumb">${thumbHtml(n)}</div>
     <div>
@@ -145,6 +168,8 @@ function renderDrawer(n) {
         ${Object.entries(IMP).map(([k, v]) => `<option value="${k}" ${n.importance === k ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
       <button class="btn" onclick="previewUpload(${n.id})">贴/传预览图</button>
+      <button class="btn" onclick="toggleArchivedNode(${n.id},${n.archived ? 0 : 1})">${n.archived ? '取消隐藏' : '隐藏'}</button>
+      <button class="btn danger" onclick="delNode(${n.id})">删除${isFig ? ' Figure' : '面板'}</button>
     </div>
     <div class="fig-thumb">${thumbHtml(n)}</div>
     ${isFig ? `<div class="section-label">面板</div>

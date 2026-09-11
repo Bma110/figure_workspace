@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, PlainTextResponse
-from fw import db, storage, naming, config, export
+from fw import db, storage, naming, config, export, imaging
 
 router = APIRouter(prefix="/api")
 
@@ -35,14 +35,14 @@ def create_workspace(body: dict):
 
 
 @router.get("/workspaces/{code}")
-def get_workspace(code: str):
+def get_workspace(code: str, show_archived: int = 0):
     with db.conn() as con:
         ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
         if not ws:
             raise HTTPException(404, "not found")
         wid = ws["id"]
         payload = dict(ws)
-        payload["tree"] = db.tree(con, wid)
+        payload["tree"] = db.tree(con, wid, include_archived=bool(show_archived))
         payload["raw_files"] = [dict(f) for f in db.raw_files(con, wid)]
         return {"workspace": payload}
 
@@ -84,7 +84,7 @@ def create_node(code: str, body: dict):
 
 @router.patch("/nodes/{nid}")
 def patch_node(nid: int, body: dict):
-    allowed = {"label", "title", "status", "importance", "note"}
+    allowed = {"label", "title", "status", "importance", "note", "archived"}
     clean = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "status" in clean and clean["status"] not in ("candidate", "adopted", "rejected", "redo"):
         raise HTTPException(400, "bad status")
@@ -113,12 +113,47 @@ def add_log(nid: int, body: dict):
 
 @router.delete("/nodes/{nid}")
 def delete_node(nid: int):
+    """删节点：库记录级联清掉，磁盘上对应的文件夹移进 .trash（可找回）。"""
     with db.conn() as con:
         node = db.get_node(con, nid)
         if not node:
             raise HTTPException(404)
+        ws = db.get_workspace(con, node["workspace_id"])
+        ws_folder = storage.workspace_folder(ws["code"])
+        folder = _node_folder(con, ws["code"], node)
+        # 同工作区若有别的节点 label 清洗后与本节点同名，会共用同一文件夹——
+        # 此时不动文件夹，只逐个删本节点（含子树）登记的文件，避免误伤对方。
+        slug = naming.folder_slug(node["label"])
+        shared = any(naming.folder_slug(o["label"]) == slug for o in con.execute(
+            "SELECT label FROM node WHERE workspace_id=? AND id<>?", (ws["id"], nid)))
+        if folder and not shared:
+            storage.move_dir_to_trash(ws_folder, folder)
+        else:
+            for did in _descendant_ids(con, nid):
+                for f in db.node_files(con, did):
+                    storage.move_to_trash(ws_folder, f["rel_path"])
         db.delete_node(con, nid)
     return {"ok": True}
+
+
+def _node_folder(con, ws_code: str, node) -> Path | None:
+    """节点在磁盘上的文件夹路径（figure 自身目录 / panel 的父 figure 子目录）。"""
+    if node["kind"] == "figure":
+        return storage.figure_dir(ws_code, node["label"])
+    parent = db.get_node(con, node["parent_id"]) if node["parent_id"] else None
+    if not parent:
+        return None
+    return storage.panel_dir(ws_code, parent["label"], node["label"])
+
+
+def _descendant_ids(con, nid) -> list[int]:
+    """自身 + 全部后代 id（广度优先）。"""
+    ids, queue = [], [nid]
+    while queue:
+        cur = queue.pop(0)
+        ids.append(cur)
+        queue.extend(c["id"] for c in db.children(con, nid=cur))
+    return ids
 
 
 # ---------------- files / preview ----------------
@@ -218,6 +253,12 @@ def delete_file(fid: int):
 @router.post("/nodes/{nid}/preview")
 async def save_preview(nid: int, file: UploadFile = File(...)):
     data = await file.read()
+    ext = Path(file.filename or "").suffix.lower()
+    if ext and imaging.needs_conversion(ext):
+        try:
+            data = imaging.to_png(data)  # 浏览器渲染不了的格式（tif 等）转成 PNG 再存
+        except Exception:
+            raise HTTPException(400, f"无法转换的图片格式：{ext}")
     with db.conn() as con:
         n = db.get_node(con, nid)
         if not n:
@@ -348,16 +389,27 @@ def apply_scan(code: str, body: dict):
             label = pick.get("label") or f"Figure {i}"
             nid = db.create_node(con, ws["id"], kind="figure", label=label, title="")
             ffolder = storage.figure_folder(code, label)
-            preview_name = naming.unique_name("preview.png",
-                                              [x.name for x in ffolder.iterdir()])
-            shutil.copy2(str(src), str(ffolder / preview_name))
             rel_dir = ffolder.relative_to(storage.workspace_folder(code))
-            preview_rel = (rel_dir / preview_name).as_posix()
-            db.update_node(con, nid, preview_rel=preview_rel)
-            db.add_file(con, ws["id"], node_id=nid,
-                        rel_path=(rel_dir / preview_name).as_posix(),
+
+            # 原图按原名留档（SHA 对得上原文件，溯源可信）
+            orig_name = naming.unique_name(src.name, [x.name for x in ffolder.iterdir()])
+            shutil.copy2(str(src), str(ffolder / orig_name))
+            orig_rel = (rel_dir / orig_name).as_posix()
+            db.add_file(con, ws["id"], node_id=nid, rel_path=orig_rel,
                         name=src.name, ext=src.suffix.lstrip(".").lower(),
                         size=src.stat().st_size, sha256=storage.sha256_file(src))
+
+            # 缩略图：可渲染的就直接用原图，否则转成真 PNG。
+            # 转不了（文件损坏等）就留空，不让整批导入失败。
+            preview_rel = orig_rel
+            if imaging.needs_conversion(src.suffix):
+                try:
+                    png_name = naming.unique_name("preview.png", [x.name for x in ffolder.iterdir()])
+                    (ffolder / png_name).write_bytes(imaging.to_png(src.read_bytes()))
+                    preview_rel = (rel_dir / png_name).as_posix()
+                except Exception:
+                    preview_rel = None
+            db.update_node(con, nid, preview_rel=preview_rel)
             created.append({"id": nid, "label": label})
     return {"created": created}
 

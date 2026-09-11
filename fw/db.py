@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS node(
  importance TEXT NOT NULL DEFAULT 'normal' CHECK(importance IN ('key','normal','aux')),
  note TEXT NOT NULL DEFAULT '',
  preview_rel TEXT,
+ archived INTEGER NOT NULL DEFAULT 0,
  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
  updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')));
 CREATE TABLE IF NOT EXISTS tag(id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE);
@@ -56,12 +57,26 @@ def connect(path=None) -> sqlite3.Connection:
     return con
 
 
+# 老库缺的列：CREATE TABLE IF NOT EXISTS 不会补，需显式 ALTER。
+_COLUMNS = {"node": {"archived": "INTEGER NOT NULL DEFAULT 0"}}
+
+
+def _migrate(con):
+    """幂等补列：给已存在的旧表加新列。"""
+    for table, cols in _COLUMNS.items():
+        have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
+        for col, decl in cols.items():
+            if col not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+
+
 class conn:
     """上下文管理器：打开连接 → init schema → 提交 → 关闭。"""
 
     def __enter__(self):
         self._con = connect()
         self._con.executescript(_SCHEMA)
+        _migrate(self._con)
         return self._con
 
     def __exit__(self, *exc):
@@ -108,9 +123,9 @@ def get_node(con, nid):
 
 
 def update_node(con, nid, label=None, title=None, status=None, importance=None, note=None,
-                preview_rel=None):
+                preview_rel=None, archived=None):
     sets, vals = [], []
-    for col in ("label", "title", "status", "importance", "note", "preview_rel"):
+    for col in ("label", "title", "status", "importance", "note", "preview_rel", "archived"):
         v = locals()[col]
         if v is not None:
             sets.append(f"{col}=?")
@@ -131,7 +146,7 @@ def children(con, nid=None, workspace_id=None):
                        (workspace_id,)).fetchall()
 
 
-def tree(con, wid):
+def tree(con, wid, include_archived=False):
     rows = con.execute("SELECT * FROM node WHERE workspace_id=? ORDER BY id", (wid,)).fetchall()
     by_parent = {}
     for r in rows:
@@ -139,12 +154,16 @@ def tree(con, wid):
     roots = by_parent.get(None, [])
 
     def build(nodes):
+        kept = []
         for n in nodes:
+            if not include_archived and n["archived"]:
+                continue  # 隐藏的节点连同其子树整体剪掉
             n["children"] = build(by_parent.get(n["id"], []))
             n["file_count"] = con.execute(
                 "SELECT COUNT(*) c FROM file_item WHERE node_id=?", (n["id"],)).fetchone()["c"]
             n["tags"] = [t["name"] for t in node_tags(con, n["id"])]
-        return nodes
+            kept.append(n)
+        return kept
 
     return build(roots)
 

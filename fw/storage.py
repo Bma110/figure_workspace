@@ -26,6 +26,17 @@ def panel_folder(ws_code: str, figure_label: str, panel_label: str) -> Path:
     return p
 
 
+def figure_dir(ws_code: str, label: str) -> Path:
+    """Figure 文件夹路径。不建 Figure 目录本身（工作区及 .trash 仍确保存在），
+    供删除等场景取路径，避免调用时把已删的目录又建回来。"""
+    return workspace_folder(ws_code) / naming.folder_slug(label)
+
+
+def panel_dir(ws_code: str, figure_label: str, panel_label: str) -> Path:
+    """面板文件夹路径。同样不建目录。"""
+    return figure_dir(ws_code, figure_label) / naming.folder_slug(panel_label)
+
+
 def _list_names(folder: Path) -> list[str]:
     return [x.name for x in folder.iterdir()] if folder.exists() else []
 
@@ -85,6 +96,18 @@ def move_to_trash(ws_folder: Path, rel_path: str):
     ws = ws_folder.resolve()
     src = (ws / rel_path).resolve()
     if not src.is_relative_to(ws) or not src.is_file():
+        return
+    trash = ws / ".trash"
+    trash.mkdir(exist_ok=True)
+    dest_name = naming.unique_name(src.name, _list_names(trash))
+    shutil.move(str(src), str(trash / dest_name))
+
+
+def move_dir_to_trash(ws_folder: Path, target: Path):
+    """把工作区内的整个目录移进 .trash（含子目录）。越界或指向工作区本身则不动。"""
+    ws = ws_folder.resolve()
+    src = target.resolve()
+    if not src.is_relative_to(ws) or src == ws or not src.is_dir():
         return
     trash = ws / ".trash"
     trash.mkdir(exist_ok=True)
