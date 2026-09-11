@@ -79,4 +79,6 @@ def test_node_returns_ancestors(client):
                                                         "parent_id": fig["id"]}).json()["node"]["id"]
     node = client.get(f"/api/nodes/{pid}").json()["node"]
     assert [a["label"] for a in node["ancestors"]] == ["Figure 3"]
-    assert client.get(f"/api/nodes/{fig['id']}").json()["node"]["ancestors"] == []
+    # 抽屉要靠 children 列出面板
+    fig_node = client.get(f"/api/nodes/{fig['id']}").json()["node"]
+    assert fig_node["ancestors"] == [] and [c["label"] for c in fig_node["children"]] == ["3A"]

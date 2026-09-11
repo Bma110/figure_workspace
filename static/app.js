@@ -335,7 +335,7 @@ window.showSettings = async function () {
     <div class="actions">
       <button class="btn" onclick="exportKind('source_data')">导出 SourceData</button>
       <button class="btn" onclick="exportKind('legend')">导出图注草稿</button>
-      <button class="btn" onclick="exportKind('data_availability')">数据可得性</button>
+      <button class="btn" onclick="exportKind('data_availability')">导出数据可得性</button>
     </div>
     <p class="muted-sm">导出针对当前所在工作区${state.wsCode ? `：${esc(state.wsCode)}` : '（请先进入一个工作区）'}</p>`;
 };
