@@ -4,6 +4,9 @@
 
 ## [未发布]
 
+### 新增
+- 项目图徽（HuaiTrace）：作为浏览器 favicon、顶栏品牌图标与 README 头图。
+
 ### 变更
 - `启动工作台.bat` 支持自定义数据根目录：优先用环境变量 `FW_ROOT`，本机无 D 盘时自动退回 `%USERPROFILE%\ResearchData`。
 - 新增 `run.sh`（macOS / Linux 启动脚本）。

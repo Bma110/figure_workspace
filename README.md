@@ -1,5 +1,7 @@
 # Figure 工作台
 
+<img src="static/icon.png" alt="HuaiTrace 图徽" width="120">
+
 > 版本 **0.1.0（测试版）** · 本地单人的「图为主体」科研图管理工具
 
 以论文 Figure 为中心，管理原始数据、图文件与溯源。数据全部留在本机，浏览器操作。
