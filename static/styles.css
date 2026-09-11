@@ -1,6 +1,8 @@
 * { box-sizing: border-box; }
 :root { --bg:#eef0f3; --panel:#fff; --line:#e3e6ec; --text:#222; --mut:#8a97a5;
         --blue:#2471a3; --green:#27ae60; --orange:#e67e22; --red:#c0392b; }
+/* 类族约定：.st-* = 状态 chip；.s-* = fig-card 状态左边条；.imp-* = 重要度。
+   id 用 camelCase（#globalSearch），视图容器/块用 kebab（#view-list、.fig-card）。 */
 body { margin:0; font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif;
        background:var(--bg); color:var(--text); font-size:14px; }
 .topbar { display:flex; align-items:center; gap:16px; padding:14px 22px; background:#24303f;
@@ -11,6 +13,7 @@ body { margin:0; font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif;
                 background:#1b2531; color:#fff; }
 .ghost { background:transparent; border:1px solid #3a4a5c; color:#cfd8e3; border-radius:8px;
          padding:8px 14px; cursor:pointer; }
+.ghost-onlight { background:transparent; border:1px solid var(--line); color:var(--text); border-radius:8px; padding:8px 14px; cursor:pointer; }
 .app { padding:22px; }
 .hidden { display:none !important; }
 .ws-card { background:var(--panel); border:1px solid var(--line); border-radius:10px;
@@ -29,7 +32,7 @@ body { margin:0; font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif;
 .fig-card.s-candidate { border-left-color:var(--orange); }
 .fig-card.s-redo { border-left-color:var(--red); }
 .fig-card.s-rejected { border-left-color:#bbb; }
-.fig-card.selected { border:2px solid var(--blue); box-shadow:0 0 0 4px #2471a31f; }
+.fig-card.selected { outline:2px solid var(--blue); outline-offset:2px; box-shadow:0 0 0 4px #2471a31f; }
 .fig-thumb { height:130px; background:#f2f4f8; border:1px solid #eee; border-radius:8px;
              display:flex; align-items:center; justify-content:center; margin:12px 0;
              color:var(--mut); overflow:hidden; }
@@ -57,3 +60,21 @@ textarea.note, .log-area { width:100%; border:1px dashed #cfd6df; border-radius:
          justify-content:center; z-index:30; }
 .modal-card { background:#fff; border-radius:12px; padding:22px; width:520px; max-width:92vw; }
 .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+/* ---- 工作区看板头部 ---- */
+.ws-head { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.ws-title { font-size:16px; }
+.ws-code { color:var(--mut); font-size:12px; }
+.spacer { flex:1; }
+/* ---- 卡片/抽屉内的通用行 ---- */
+.row-between { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.drawer-title { font-size:16px; }
+.card-meta { color:var(--blue); font-size:12px; margin-top:6px; }
+.muted { color:var(--mut); }
+.muted-sm { color:var(--mut); font-size:12px; }
+.btn.small { padding:2px 8px; font-size:12px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.tagchip .tag-x { color:var(--blue); text-decoration:none; margin-left:6px; font-weight:bold; }
+.chain { background:#f7f8fa; border:1px solid #eceff3; border-radius:8px; padding:12px;
+         font-size:13px; color:#444; line-height:1.9; word-break:break-all; }
+.actions select.btn { padding:8px 10px; }
+@media (max-width:900px) { .fig-grid { grid-template-columns:1fr; } }

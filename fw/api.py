@@ -5,8 +5,8 @@ import sqlite3
 import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
-from fw import db, storage, naming, config
+from fastapi.responses import FileResponse, PlainTextResponse
+from fw import db, storage, naming, config, export
 
 router = APIRouter(prefix="/api")
 
@@ -133,6 +133,7 @@ def get_node(nid: int):
         d["logs"] = [dict(x) for x in db.node_logs(con, nid)]
         d["tags"] = [x["name"] for x in db.node_tags(con, nid)]
         d["ancestors"] = db.ancestors(con, nid)
+        d["children"] = [dict(x) for x in db.children(con, nid=nid)]
         return {"node": d}
 
 
@@ -359,6 +360,34 @@ def apply_scan(code: str, body: dict):
                         size=src.stat().st_size, sha256=storage.sha256_file(src))
             created.append({"id": nid, "label": label})
     return {"created": created}
+
+
+# ---------------- settings / export ----------------
+@router.get("/settings")
+def get_settings():
+    return {"root": str(config.root_dir()), "db": str(config.db_path())}
+
+
+_EXPORTS = {
+    "source_data": (export.source_data, "source-data.csv"),
+    "legend": (export.legend_draft, "figure-legends.txt"),
+    "data_availability": (export.data_availability, "data-availability.txt"),
+}
+
+
+@router.get("/workspaces/{code}/export/{kind}")
+def export_workspace(code: str, kind: str):
+    """对「已采用」节点导出 SourceData / 图注草稿 / 数据可得性文本。"""
+    if kind not in _EXPORTS:
+        raise HTTPException(404, "未知导出类型")
+    fn, fname = _EXPORTS[kind]
+    with db.conn() as con:
+        ws = con.execute("SELECT * FROM workspace WHERE code=?", (code,)).fetchone()
+        if not ws:
+            raise HTTPException(404, "工作区不存在")
+        body = fn(con, ws["id"])
+    return PlainTextResponse(body, media_type="text/plain; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 # ---------------- backup ----------------
