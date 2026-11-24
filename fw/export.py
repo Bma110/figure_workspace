@@ -8,7 +8,19 @@
   panel 单独成行。
 - data_availability 的计数取已采用 figure 数。
 """
+from io import StringIO
+import csv
+
 from fw import db
+
+
+def _csv_text(header, rows):
+    """CSV 文本：文件名/路径可能含逗号，用标准 csv 库输出。"""
+    buf = StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(header)
+    w.writerows(rows)
+    return buf.getvalue().rstrip("\n")
 
 
 def _adopted_nodes(con, wid):
@@ -25,7 +37,7 @@ def _export_roots(con, wid):
 
 def source_data(con, wid) -> str:
     """CSV 文本：采用 figure（含其采用面板的文件）或孤立采用 panel → 源文件清单。"""
-    lines = ["Figure,File,RelativePath,SHA256,Size"]
+    rows = []
     for n in _export_roots(con, wid):
         if n["kind"] == "figure":
             files = con.execute(
@@ -36,8 +48,8 @@ def source_data(con, wid) -> str:
             files = con.execute(
                 "SELECT * FROM file_item WHERE node_id=? ORDER BY id", (n["id"],)).fetchall()
         for f in files:
-            lines.append(f'{n["label"]},{f["name"]},{f["rel_path"]},{f["sha256"]},{f["size"]}')
-    return "\n".join(lines)
+            rows.append([n["label"], f["name"], f["rel_path"], f["sha256"], f["size"]])
+    return _csv_text(["Figure", "File", "RelativePath", "SHA256", "Size"], rows)
 
 
 def legend_draft(con, wid) -> str:

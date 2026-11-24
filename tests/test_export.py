@@ -1,3 +1,6 @@
+import csv
+from io import StringIO
+
 from fw import db, export
 
 
@@ -15,6 +18,18 @@ def test_source_data_manifest():
         wid = _seed(con)
         rows = export.source_data(con, wid)
         assert "a.xlsx" in rows and "aa" in rows
+
+
+def test_source_data_csv_quotes_commas():
+    with db.conn() as con:
+        wid = db.create_workspace(con, code="Q", name="Q")
+        fig = db.create_node(con, wid, "figure", "Figure,1", "标题", status="adopted")
+        db.add_file(con, wid, node_id=fig, rel_path="Q/Fig,1/a,b.xlsx",
+                    name="a,b.xlsx", ext="xlsx", size=3, sha256="aa,bb")
+        text = export.source_data(con, wid)
+        rows = list(csv.reader(StringIO(text)))
+        assert rows[1][0] == "Figure,1" and rows[1][1] == "a,b.xlsx"
+        assert rows[1][3] == "aa,bb"
 
 
 def test_legend_draft_mentions_label():

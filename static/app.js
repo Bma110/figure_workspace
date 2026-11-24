@@ -594,14 +594,23 @@ window.doBackup = async function () {
     `<p>已备份到 <b>${esc(r.backup_dir)}</b>，清单 ${r.manifest_count} 条。</p>`;
 };
 
-window.exportKind = function (kind) {
+window.exportKind = async function (kind) {
   if (!state.wsCode) { toast('先进入一个工作区再导出', 'warn'); return; }
   const names = { source_data: 'source-data.csv', legend: 'figure-legends.txt',
                   data_availability: 'data-availability.txt' };
-  const a = document.createElement('a');
-  a.href = `/api/workspaces/${encodeURIComponent(state.wsCode)}/export/${kind}`;
-  a.download = names[kind];
-  document.body.appendChild(a); a.click(); a.remove();
+  try {
+    const r = await fetch(`/api/workspaces/${encodeURIComponent(state.wsCode)}/export/${kind}`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = names[kind];
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(`已导出 ${names[kind]}`, 'ok');
+  } catch (e) {
+    toast('导出失败', 'error');
+  }
 };
 
 // ---------------- 顶栏绑定 ----------------
