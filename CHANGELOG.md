@@ -8,6 +8,7 @@
 - 任务栏一键启动：`scripts/launch.ps1` + `scripts/launch.vbs` 无窗口启动，复用已运行实例、自动挑空闲端口、按需建 venv/装依赖、健康检查通过后自动打开浏览器；日志写 `data/launcher.log` 与 `data/server.out.log`、`data/server.err.log`。
 - `scripts/install_shortcut.ps1` 生成带 `static/icon.ico` 的「Figure 工作台」快捷方式（仓库根 + 开始菜单），用于固定到任务栏；`scripts/make_icon.py` 可从 `static/icon.png` 重新生成图标。
 - 首次启动自动生成开始菜单快捷方式：`启动工作台.bat` 与 `launch.ps1` 检测到缺失时自动调用 `install_shortcut.ps1 -Quiet`，并提示固定到任务栏（固定动作本身仍由用户右键完成）。
+- `关闭工作台.bat` / `卸载工作台.bat` 双击即用：前者按命令行匹配结束 `fw_server` 进程；后者结束服务、删开始菜单快捷方式、把整个文件夹移入回收站（可恢复），科研数据目录不动。批处理以 **GBK + CRLF** 保存（cmd 默认 936），勿改回 UTF-8，否则中文行会错行解析。
 - 看板新增「↻ 刷新」按钮：重取工作区数据并用时间戳重载全部预览图（含详情抽屉），磁盘上被替换的预览图不必整页刷新；预览图 URL 默认带节点 `updated_at`，应用内更新也会及时显示。
 
 ### 修复

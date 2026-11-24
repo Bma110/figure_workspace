@@ -14,6 +14,7 @@
   在开始菜单右键 → 固定到任务栏即可（Win11 先点「显示更多选项」）。之后一点图标就会：复用已在运行的服务并自动打开浏览器；
   服务没起来时会在后台隐藏启动、健康检查通过后再打开浏览器。日志在 `data\launcher.log`、`data\server.out.log`、`data\server.err.log`。
   需要手动重建快捷方式时运行 `powershell -ExecutionPolicy Bypass -File scripts\install_shortcut.ps1`。
+- **关闭 / 卸载**：双击 `关闭工作台.bat` 结束后台服务；双击 `卸载工作台.bat` 一键卸载——结束服务、删除开始菜单快捷方式，并把整个文件夹移入**回收站**（可恢复）。科研数据目录（`FW_ROOT`）不动；固定过任务栏的需右键取消固定。
 
 首次进入应用：应用会悄悄把仓库根 `教程/Figure1`（如果存在）里的示例图，或回退到 `docs/tutorial_scans/`，导入为一个 **“入门教程”** 工作区（`code=tutorial`，Figure 与素材放在 `D:\ResearchData\tutorial\`），之后会出现在工作区列表里，方便新用户体验；已存在则不重复导入。
 
