@@ -2,6 +2,19 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.6] — 2026-11-24（测试版）
+
+### 新增
+- 任务栏一键启动：`scripts/launch.ps1` + `scripts/launch.vbs` 无窗口启动，复用已运行实例、自动挑空闲端口、按需建 venv/装依赖、健康检查通过后自动打开浏览器；日志写 `data/launcher.log` 与 `data/server.out.log`、`data/server.err.log`。
+- `scripts/install_shortcut.ps1` 生成带 `static/icon.ico` 的「Figure 工作台」快捷方式（仓库根 + 开始菜单），用于固定到任务栏；`scripts/make_icon.py` 可从 `static/icon.png` 重新生成图标。
+- 首次启动自动生成开始菜单快捷方式：`启动工作台.bat` 与 `launch.ps1` 检测到缺失时自动调用 `install_shortcut.ps1 -Quiet`，并提示固定到任务栏（固定动作本身仍由用户右键完成）。
+- 看板新增「↻ 刷新」按钮：重取工作区数据并用时间戳重载全部预览图（含详情抽屉），磁盘上被替换的预览图不必整页刷新；预览图 URL 默认带节点 `updated_at`，应用内更新也会及时显示。
+
+### 修复
+- 预览图「贴/传」真正支持剪贴板：点击后弹出「按 Ctrl+V 粘贴」对话框，可粘贴截图或选择文件；上传后提示并刷新。此前按钮只有文件选择，没有粘贴功能。
+- `启动工作台.bat` 统一为 CRLF 并新增 `.gitattributes`（`*.bat eol=crlf`），修复双击启动时 cmd 解析错行、服务根本没起来的问题。
+- 启动横幅显示真实版本号与数据目录（此前 `.py` 的 `VersionInfo` 为空导致版本空白）。
+
 ## [0.2.5] — 2026-11-24（测试版）
 
 ### 修复/优化

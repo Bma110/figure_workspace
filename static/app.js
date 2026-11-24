@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { view: 'list', wsCode: null, tree: [], selectedNode: null, showArchived: false, journal: false };
+const state = { view: 'list', wsCode: null, tree: [], selectedNode: null, showArchived: false, journal: false, imgVer: null };
 
 async function api(path, opts = {}) {
   let r;
@@ -132,6 +132,7 @@ async function renderWorkspace() {
       <b class="ws-title">${esc(workspace.name)}</b>
       <span class="ws-code">${esc(workspace.code)}</span>
       <span class="spacer"></span>
+      <button class="btn" onclick="refreshBoard()" title="重新读取数据并刷新所有预览图">↻ 刷新</button>
       <button class="btn" onclick="toggleJournal()">${state.journal ? '卡片视图' : '📰 期刊视图'}</button>
       <button class="btn" onclick="toggleArchived()">${state.showArchived ? '只显示可见' : '显示已隐藏'}</button>
       <button class="btn" onclick="newFigureModal()">+ 新建 Figure</button>
@@ -144,6 +145,21 @@ async function renderWorkspace() {
 window.toggleArchived = function () {
   state.showArchived = !state.showArchived;
   renderWorkspace();
+};
+
+// 重取数据并用时间戳给预览图 URL 换版本，绕过浏览器/磁盘缓存。
+window.refreshBoard = async function () {
+  state.imgVer = Date.now();
+  try {
+    if (state.selectedNode) {
+      await refreshNode(state.selectedNode);
+    } else {
+      await renderWorkspace();
+    }
+  } finally {
+    state.imgVer = null;
+  }
+  toast('已刷新', 'ok');
 };
 
 window.toggleJournal = function () {
@@ -254,19 +270,20 @@ function panelCount(n) {
   return (n.children || []).reduce((sum, c) => sum + 1 + panelCount(c), 0);
 }
 
-function previewUrl(rel) {
+function previewUrl(rel, ver) {
   const path = rel.split('/').map(encodeURIComponent).join('/');
-  return `/api/preview/${encodeURIComponent(state.wsCode)}/${path}`;
+  const v = state.imgVer || ver;
+  return `/api/preview/${encodeURIComponent(state.wsCode)}/${path}` + (v ? `?v=${encodeURIComponent(v)}` : '');
 }
 
 function thumbHtml(n) {
   if (!n.preview_rel) return '<span class="thumb-empty">无预览<small>可粘贴截图</small></span>';
-  return `<img src="${previewUrl(n.preview_rel)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
+  return `<img src="${previewUrl(n.preview_rel, n.updated_at)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
 }
 
 function journalThumb(n) {
   if (!n.preview_rel) return '<span class="j-subempty">暂无预览</span>';
-  return `<img src="${previewUrl(n.preview_rel)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
+  return `<img src="${previewUrl(n.preview_rel, n.updated_at)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
 }
 
 window.selectNode = async function (id) {
@@ -496,15 +513,62 @@ window.uploadTo = function (nid) {
   input.click();
 };
 
-window.previewUpload = function (nid) {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*';
-  input.onchange = async () => {
-    const fd = new FormData(); fd.append('file', input.files[0]);
-    await api(`/api/nodes/${nid}/preview`, { method: 'POST', body: fd });
-    await refreshNode(nid);
-  };
-  input.click();
+function previewFileName(blob) {
+  const sub = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+  return 'clipboard.' + sub;
+}
+
+async function uploadPreview(nid, blob) {
+  const fd = new FormData();
+  fd.append('file', blob, previewFileName(blob));
+  await api(`/api/nodes/${nid}/preview`, { method: 'POST', body: fd });
+  toast('预览已更新', 'ok');
+  await refreshNode(nid);
+}
+
+function pickPreviewImage() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (file) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('paste', onPaste);
+      resolve(file || null);
+    };
+    const onPaste = (e) => {
+      const item = [...((e.clipboardData && e.clipboardData.items) || [])]
+        .find(i => i.kind === 'file' && i.type.startsWith('image/'));
+      if (!item) return;
+      const file = item.getAsFile();
+      if (!file) return;
+      e.preventDefault();
+      finish(file);
+      closeModal();
+    };
+    document.addEventListener('paste', onPaste);
+    dialog(`
+      <div class="modal-card dlg">
+        <div class="row-between"><b class="drawer-title">贴/传预览图</b><button class="btn" onclick="closeModal()">✕</button></div>
+        <p class="muted-sm">按 Ctrl+V 粘贴剪贴板里的截图，或选择图片文件。</p>
+        <div class="paste-zone" id="pasteZone" tabindex="0">在这里按 Ctrl+V 粘贴</div>
+        <div class="actions dlg-actions">
+          <button class="btn" id="pickFile">选择文件…</button>
+          <button class="btn" onclick="closeModal()">取消</button>
+        </div>
+      </div>`, () => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = () => { if (input.files[0]) { finish(input.files[0]); closeModal(); } };
+      $('#pickFile').onclick = () => input.click();
+      $('#pasteZone').focus();
+    }).then(() => finish(null));
+  });
+}
+
+// 每次都弹出选择框：Ctrl+V 粘贴 或 选择文件，两条路径始终可选。
+window.previewUpload = async function (nid) {
+  const file = await pickPreviewImage();
+  if (file) await uploadPreview(nid, file);
 };
 
 // 标签撤销/加标签/删文件：用 data-* + 事件委托，避免把用户输入拼进 onclick 字符串。

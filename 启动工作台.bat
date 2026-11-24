@@ -18,6 +18,13 @@ if not defined FW_ROOT (
 )
 if not defined FW_ROOT set "FW_ROOT=%USERPROFILE%\ResearchData"
 
+REM 2b) First run: create the Start Menu shortcut (pinning stays a user action).
+if not exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Figure 工作台.lnk" (
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "scripts\install_shortcut.ps1"
+  echo [提示] 已生成开始菜单快捷方式「Figure 工作台」，右键可固定到任务栏。
+  echo:
+)
+
 REM 3) Show a small banner if present.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "scripts\print_startup_banner.ps1" -Banner
 

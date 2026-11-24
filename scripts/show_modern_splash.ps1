@@ -1,4 +1,4 @@
-param([string]$Title = "Figure startup", [string]$Caption = "Research figures, local and simple.")
+﻿param([string]$Title = "Figure startup", [string]$Caption = "Research figures, local and simple.")
 
 $modern = $false
 if ($PSVersionTable.PSVersion.Major -ge 6 -and $env:WT_SESSION) {

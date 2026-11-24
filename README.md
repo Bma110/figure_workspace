@@ -2,7 +2,7 @@
 
 <img src="static/icon.png" alt="HuaiTrace 图徽" width="120">
 
-> 版本 **0.2.5（测试版）** · 本地单人的「图为主体」科研图管理工具
+> 版本 **0.2.6（测试版）** · 本地单人的「图为主体」科研图管理工具
 
 以论文 Figure 为中心，管理原始数据、图文件与溯源。数据全部留在本机，浏览器操作。
 
@@ -10,6 +10,10 @@
 
 - **Windows**：双击仓库目录里的 `启动工作台.bat`。它会显示版本与访问地址、现代终端下弹出简短启动标题，首次运行自动创建虚拟环境并安装依赖，然后起服务。
 - **macOS / Linux**：在仓库目录运行 `./run.sh`。首次运行会自动创建虚拟环境、安装依赖，然后起服务。
+- **任务栏一键启动（Windows）**：首次用 `启动工作台.bat` 启动时会自动生成带图标的开始菜单快捷方式「Figure 工作台」，
+  在开始菜单右键 → 固定到任务栏即可（Win11 先点「显示更多选项」）。之后一点图标就会：复用已在运行的服务并自动打开浏览器；
+  服务没起来时会在后台隐藏启动、健康检查通过后再打开浏览器。日志在 `data\launcher.log`、`data\server.out.log`、`data\server.err.log`。
+  需要手动重建快捷方式时运行 `powershell -ExecutionPolicy Bypass -File scripts\install_shortcut.ps1`。
 
 首次进入应用：应用会悄悄把仓库根 `教程/Figure1`（如果存在）里的示例图，或回退到 `docs/tutorial_scans/`，导入为一个 **“入门教程”** 工作区（`code=tutorial`，Figure 与素材放在 `D:\ResearchData\tutorial\`），之后会出现在工作区列表里，方便新用户体验；已存在则不重复导入。
 

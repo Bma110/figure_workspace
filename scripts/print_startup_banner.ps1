@@ -1,8 +1,10 @@
-param([switch]$Banner)
+﻿param([switch]$Banner)
 
-$Version = "0.2.2"
-$VersionInfo = Get-Item "fw_server.py" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty VersionInfo
-if ($VersionInfo) { $Version = $VersionInfo.ProductVersion }
+$Version = "unknown"
+$source = Get-Content "fw_server.py" -Raw -ErrorAction SilentlyContinue
+if ($source -match 'version\s*=\s*"([^"]+)"') { $Version = $Matches[1] }
+$Root = $env:FW_ROOT
+if (-not $Root) { $Root = "(default)" }
 
 if ($Banner) {
     Write-Output ""
@@ -14,6 +16,6 @@ else {
     Write-Output "[Figure Workspace] Starting..."
     Write-Output "[Version] $Version"
 }
-Write-Output "[Data dir] ..."
+Write-Output "[Data dir] $Root"
 Write-Output "[URL] http://127.0.0.1:8000   Press Ctrl+C to exit"
 Write-Output ""
