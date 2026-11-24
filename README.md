@@ -78,7 +78,7 @@ FW_ROOT=~/ResearchData ./run.sh
 ## 文档
 
 - [更新日志](CHANGELOG.md) · [工作记录](docs/dev-log.md)
-- [文档索引](docs/README.md) · [已知问题 / 开发过程记录](docs/known-issues.md)
+- [文档索引](docs/README.md) · [入门教程](docs/tutorial.md) · [已知问题 / 开发过程记录](docs/known-issues.md)
 - [AGENTS.md](AGENTS.md)：面向接入的 agent 的约定、改动落点与接口面
 
 ## 开发
