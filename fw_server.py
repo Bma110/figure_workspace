@@ -12,7 +12,7 @@ async def _lifespan(app):
     yield
 
 
-app = FastAPI(title="Figure Workspace", version="0.2.4", lifespan=_lifespan)
+app = FastAPI(title="Figure Workspace", version="0.2.5", lifespan=_lifespan)
 app.include_router(router)
 
 

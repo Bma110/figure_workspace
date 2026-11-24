@@ -1,8 +1,8 @@
 """首次运行自动导入教程素材。
 
+优先导入仓库根 `教程/Figure1` 里的 `*.png`；没有则导入 `docs/tutorial_scans/`。
 目标是让新用户一开始就能在工作区列表里看到「入门教程」工作区（按 Figure 建成 Figure，
-预览与源文件落盘到 workspace 目录），配合 [docs/tutorial.md](../docs/tutorial.md) 与
-[docs/tutorial_scans/README.md](../docs/tutorial_scans/README.md) 一起使用。
+预览与源文件落盘到 workspace 目录）。
 """
 import shutil
 from pathlib import Path
@@ -11,11 +11,19 @@ from fw import db, storage
 
 WORKSPACE_NAME = "入门教程"
 WORKSPACE_CODE = "tutorial"
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tutorial_scans"
+ASSETS_DIRS = [
+    Path(__file__).resolve().parent.parent / "教程" / "Figure1",
+    Path(__file__).resolve().parent.parent / "docs" / "tutorial_scans",
+]
 
 
 def _assets():
-    return sorted(ASSETS_DIR.glob("*.png")) if ASSETS_DIR.is_dir() else []
+    # 优先把用户放在项目文件的更新版“教程/Figure1”导入；没有时回退到 docs/tutorial_scans。
+    for d in ASSETS_DIRS:
+        files = sorted(d.glob("*.png")) if d.is_dir() else []
+        if files:
+            return files
+    return []
 
 
 def has_workspace(con) -> bool:
@@ -30,7 +38,7 @@ def _existing(con) -> bool:
 
 
 def seed_tutorial_workspace(con):
-    """把 docs/tutorial_scans 里的示例图导入为「入门教程」工作区下的若干 Figure。"""
+    """把 `教程/Figure1`（或 docs/tutorial_scans）里的示例图导入为「入门教程」工作区。"""
     if _existing(con) or not _assets():
         return None
     ws = db.get_workspace(con, db.create_workspace(con, code=WORKSPACE_CODE, name=WORKSPACE_NAME))
