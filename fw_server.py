@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fw.api import router
 
-app = FastAPI(title="Figure Workspace", version="0.2.2")
+app = FastAPI(title="Figure Workspace", version="0.2.3")
 app.include_router(router)
 
 

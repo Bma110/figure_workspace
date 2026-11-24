@@ -2,6 +2,11 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.3] — 2026-11-24（测试版）
+
+### 新增
+- 启动更好看：`启动工作台.bat` 与 `run.sh` 现在会打印版本与访问地址，现代终端用轻量启动标题（`scripts\print_startup_banner.ps1`，`scripts\show_modern_splash.ps1`）。
+
 ## [0.2.2] — 2026-11-24（测试版）
 
 ### 内容改进
