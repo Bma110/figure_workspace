@@ -28,8 +28,8 @@ def test_source_data_csv_quotes_commas():
                     name="a,b.xlsx", ext="xlsx", size=3, sha256="aa,bb")
         text = export.source_data(con, wid)
         rows = list(csv.reader(StringIO(text)))
-        assert rows[1][0] == "Figure,1" and rows[1][1] == "a,b.xlsx"
-        assert rows[1][3] == "aa,bb"
+        assert rows[1][0] == "Figure,1" and rows[1][1] == "figure"
+        assert rows[1][2] == "a,b.xlsx" and rows[1][4] == "aa,bb"
 
 
 def test_legend_draft_mentions_label():
@@ -78,7 +78,7 @@ def test_source_data_folds_adopted_child_into_figure_row():
         rows = export.source_data(con, wid)
         # RelativePath 列会回显文件名，故按完整路径计数：该文件只列一行（并入父 Figure 行，无重复 1A 行）
         assert rows.count("F1/panelA.xlsx") == 1
-        assert "Figure 1,panelA.xlsx,F1/panelA.xlsx,pA,1" in rows  # 逐字整行：证明并入父行，而非孤儿单独成行
+        assert "Figure 1,panel,panelA.xlsx,F1/panelA.xlsx,pA,1" in rows  # Kind=panel，行出自子图；文件并入父行
 
 
 def test_legend_draft_excludes_non_adopted_figure():
@@ -98,5 +98,5 @@ def test_source_data_orphan_adopted_panel_exports():
         db.add_file(con, wid, node_id=cand_fig, rel_path="F9/figfile.xlsx", name="figfile.xlsx",
                     ext="xlsx", size=1, sha256="f9")
         rows = export.source_data(con, wid)
-        assert "panelB.xlsx" in rows
-        assert "figfile.xlsx" not in rows  # 候选父 figure 的文件不进 SourceData
+        assert "panelB.xlsx" in rows and "figfile.xlsx" not in rows
+        assert list(csv.reader(StringIO(rows)))[1][1] == "panel"  # 孤立 panel 行的 Kind=panel

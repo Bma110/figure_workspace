@@ -48,8 +48,10 @@ def source_data(con, wid) -> str:
             files = con.execute(
                 "SELECT * FROM file_item WHERE node_id=? ORDER BY id", (n["id"],)).fetchall()
         for f in files:
-            rows.append([n["label"], f["name"], f["rel_path"], f["sha256"], f["size"]])
-    return _csv_text(["Figure", "File", "RelativePath", "SHA256", "Size"], rows)
+            # Panel 行用 Kind 区分；Figure 行合并其子图的文件，清单更可追溯。
+            kind = "panel" if (n["kind"] == "panel" or f["node_id"] != n["id"]) else "figure"
+            rows.append([n["label"], kind, f["name"], f["rel_path"], f["sha256"], f["size"]])
+    return _csv_text(["Node", "Kind", "File", "RelativePath", "SHA256", "Size"], rows)
 
 
 def legend_draft(con, wid) -> str:
@@ -57,8 +59,11 @@ def legend_draft(con, wid) -> str:
     for n in con.execute(
             "SELECT * FROM node WHERE workspace_id=? AND parent_id IS NULL AND kind='figure' "
             "AND status='adopted' ORDER BY id", (wid,)).fetchall():
-        note = (n["note"] or "").strip().replace("\n", " ")
-        out.append(f'{n["label"]} ({n["title"] or "待补标题"}). {note}')
+        note = (n["note"] or "").strip().replace("\n", " ").strip()
+        line = f'{n["label"]} ({n["title"] or "待补标题"}).'
+        if note:
+            line += f' {note}'
+        out.append(line)
         for p in db.children(con, nid=n["id"]):
             out.append(f'  {p["label"]} {p["title"] or ""}'.rstrip())
     return "\n".join(out)
@@ -71,8 +76,7 @@ def data_availability(con, wid, repo_hint: str = "") -> str:
         "AND kind='figure'", (wid,)).fetchone()["c"]
     hint = repo_hint or "[填写：原始数据仓库 / DOI 占位]"
     return (f"Data availability.\n\n"
-            f"All source data underlying the {n_figs} adopted figure(s) of this manuscript "
-            f"({ws['name']}) are provided as Source Data files. Raw sequencing / imaging datasets "
-            f"are deposited at {hint}.\n\n"
-            f"Uncropped blots and statistical source tables are included with the paper's "
-            f"supplementary Source Data file set.")
+            f"Source Data files for the {n_figs} adopted figure(s) of this manuscript "
+            f"({ws['name']}) are available. Raw sequencing / imaging datasets are deposited at {hint}.\n\n"
+            f"Uncropped blots and statistical source tables are included in the supplementary "
+            f"Source Data file set.")
