@@ -2,12 +2,32 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.2.0] — 2026-11-24（测试版）
 
 ### 新增
 - 项目图徽（HuaiTrace）：作为浏览器 favicon、顶栏品牌图标与 README 头图。
+- **期刊视图**：工作区看板可切换为稿件式排版（标题、摘要统计、按编号的图注、状态标记）。
+- **新建 Figure 分段表单**：按期刊图件要求分段填写图题、图注、面板、统计与方法，并显示每段的填写状态；面板随建图一并创建。
+- 节点新增「统计与方法」字段 `methods`（老库启动时自动补列）；图注沿用已有的 `note` 字段。
+- `AGENTS.md`：面向接入 agent 的约定、改动落点速查与接口面。
+- 抽屉可显示并编辑 Figure 的图注与统计方法。
+- 节点新增持久化字段 `folder`（老库启动时自动补列并回填）；新增原子建图接口 `POST /workspaces/{code}/figures`，一次创建 Figure 与面板。
+- PDF 读取与自动导入的接口规格（`docs/api/pdf-import.md`，设计中，未实现）。
+
+### 修复
+- `PATCH /api/nodes/{nid}` 修改 label 会同步重命名文件夹，并改写该子树已登记的 `rel_path` 与预览路径；此前改名会让文件夹与记录分离、后续上传分裂。
+- `GET /api/files/{fid}` 使用工作区越界校验，非法 `rel_path` 返回 400。
+- 删除节点时清理其子树的文件记录，避免「原始数据」出现指向已进 `.trash` 文件的幽灵记录。
+- 扫描导入遇到重复 Figure label 会跳过并返回 `skipped`，不再产生重复目录。
 
 ### 变更
+- 新建 Figure 与扫描导入改用原子接口；面板创建失败会回滚并清理新文件夹。
+- Figure label 在工区内唯一（重名 409），面板 label 在同 Figure 内唯一（400）。
+- 新建 Figure 不再使用系统 `prompt` 弹窗，改为应用内弹窗。
+- 全部原生 `prompt` / `confirm` / `alert` 改为应用内弹窗（`askText` / `askConfirm`）与 toast 提示；Esc 可关闭弹窗。
+- 卡片与工作区列表可用键盘聚焦并按回车打开。
+- 抽屉的状态、重要度改为分段控件，删除按钮移到抽屉底部。
+- 字号与对比度调整；预览区 4:3 自适应，无预览时显示占位；`.stagged` 改为 `.badge-hidden`，`.ghost` / `.ghost-onlight` 合并为 `.btn-ghost`。
 - `启动工作台.bat` 支持自定义数据根目录：优先用环境变量 `FW_ROOT`，本机无 D 盘时自动退回 `%USERPROFILE%\ResearchData`。
 - 新增 `run.sh`（macOS / Linux 启动脚本）。
 - README 补「换一台电脑」：数据迁移步骤、`FW_ROOT` / `FW_DB` 用法、Python ≥ 3.10 要求。
