@@ -9,5 +9,6 @@
 | [api/pdf-import.md](api/pdf-import.md) | PDF 读取与自动导入接口规格（**设计中，未实现**） |
 | [roadmap.md](roadmap.md) | 路线图：阶段计划、决策记录、已确认的问题 |
 | [tutorial.md](tutorial.md) | 入门教程：从启动到建第一张图、查看稿件样式的常见操作与概念 |
+| [tutorial_scans/README.md](tutorial_scans/README.md) | 可被“扫描导入”的教程素材图（`fig_1.png` … `fig_5.png`） |
 
 版本历史见根目录 [CHANGELOG.md](../CHANGELOG.md)；用法见根目录 [README.md](../README.md)。

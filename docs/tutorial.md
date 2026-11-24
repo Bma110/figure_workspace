@@ -41,6 +41,9 @@
 ## 7. 扫描导入（可选）
 
 - 指向已有文件夹 → 只读发现图片 → 勾选导入为 Figure（原图留档，同名 Figure 会跳过）。
+- 本文档同目录 `tutorial_scans/` 里有一组可导入的示例图（`fig_1.png` … `fig_5.png`）。
+  指向 [`docs/tutorial_scans`](./tutorial_scans) 路径即可通过“扫描导入”把它们建成 Figure，
+  配合说明见 [`docs/tutorial_scans/README.md`](./tutorial_scans/README.md)，适合想马上上手体验。
 
 ## 8. 期刊视图
 
