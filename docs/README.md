@@ -8,7 +8,7 @@
 | [superpowers/plans/2026-09-08-figure-workspace-mvp.md](superpowers/plans/2026-09-08-figure-workspace-mvp.md) | MVP 实现计划（任务分解） |
 | [api/pdf-import.md](api/pdf-import.md) | PDF 读取与自动导入接口规格（**设计中，未实现**） |
 | [roadmap.md](roadmap.md) | 路线图：阶段计划、决策记录、已确认的问题 |
-| [tutorial.md](tutorial.md) | 入门教程：从启动到建第一张图、查看稿件样式的常见操作与概念 |
+| [tutorial.md](tutorial.md) | 入门教程：从启动（首次自动导入教程素材）到建第一张图、查看稿件样式的常见操作与概念 |
 | [tutorial_scans/README.md](tutorial_scans/README.md) | 可被“扫描导入”的教程素材图（`fig_1.png` … `fig_5.png`） |
 | [tutorial_scans/INITIALISATION.md](tutorial_scans/INITIALISATION.md) | 素材图导入后的初始属性：状态、重要度、面板（子图）、溯源，以及界面里怎么显示 |
 

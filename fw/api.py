@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse, PlainTextResponse
-from fw import db, storage, naming, config, export, imaging
+from fw import db, storage, naming, config, export, imaging, seed
 
 router = APIRouter(prefix="/api")
 
@@ -15,6 +15,9 @@ router = APIRouter(prefix="/api")
 @router.get("/workspaces")
 def list_workspaces():
     with db.conn() as con:
+        # 首次访问：如教程素材尚未导入，悄悄创建一个入门教程工作区。
+        if not seed.has_workspace(con):
+            seed.seed_tutorial_workspace(con)
         return {"workspaces": [dict(w) for w in db.list_workspaces(con)]}
 
 

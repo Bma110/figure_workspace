@@ -1,8 +1,18 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fw.api import router
 
-app = FastAPI(title="Figure Workspace", version="0.2.3")
+
+@asynccontextmanager
+async def _lifespan(app):
+    from fw import db, seed
+    with db.conn() as con:
+        seed.seed_tutorial_workspace(con)
+    yield
+
+
+app = FastAPI(title="Figure Workspace", version="0.2.4", lifespan=_lifespan)
 app.include_router(router)
 
 

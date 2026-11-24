@@ -2,6 +2,11 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.4] — 2026-11-24（测试版）
+
+### 新增
+- 首次运行自动导入：`fw/seed.py` 把仓库内 `docs/tutorial_scans/` 示例图导入为 **“入门教程”** 工作区（`code=tutorial`），按 Figure 建成 `fig_1..fig_5`；`/api/workspaces` 与 `fw_server` lifespan 首次调用时触发；`tests/test_seed.py` 覆盖。
+
 ## [0.2.3] — 2026-11-24（测试版）
 
 ### 新增
