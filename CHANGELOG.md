@@ -2,6 +2,19 @@
 
 版本号采用 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.2] — 2026-11-24（测试版）
+
+### 内容改进
+- SourceData CSV 新增 `Kind`（figure/panel）列，导出清单可区分父图行与子图行，追溯更清楚；
+- 图注草稿去掉 Figure 图题空串时的尾部占位，无 `note` 时只列标题；
+- 数据可得性文案精简为“Source Data files for the N adopted figure(s) of this manuscript (工作区名) are available...”。
+
+### 修复
+- 导出界面（SourceData / 图注草稿 / 数据可得性）点击后会提示成功或失败；失败显示 toast。
+
+### 新增（文档）
+- [入门教程](docs/tutorial.md) 与 [docs/tutorial_scans/](docs/tutorial_scans)：可被“扫描导入”的示例素材，以及 [INITIALISATION.md](docs/tutorial_scans/INITIALISATION.md)（导入后初始属性/界面显示位置）。
+
 ## [0.2.1] — 2026-11-24（测试版）
 
 ### 新增
