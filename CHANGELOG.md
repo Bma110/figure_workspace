@@ -5,7 +5,7 @@
 ## [0.2.1] — 2026-11-24（测试版）
 
 ### 新增
-- [入门教程](docs/tutorial.md)：新用户从启动、建 Figure、面板、预览、状态到期刊视图的中文分步指南；附带可被“扫描导入”的示例素材 [docs/tutorial_scans/](docs/tutorial_scans)。
+- [入门教程](docs/tutorial.md)：新用户从启动、建 Figure、面板、预览、状态到期刊视图的中文分步指南；附带可被“扫描导入”的示例素材 [docs/tutorial_scans/](docs/tutorial_scans)，导入后属性见 [INITIALISATION.md](docs/tutorial_scans/INITIALISATION.md)。
 
 ### 修复
 - 面板预览图落到面板自己的目录（如 `Figure1/A/preview.png`）；历史数据中放到全局 `原始数据` 的面板预览一次性修正。

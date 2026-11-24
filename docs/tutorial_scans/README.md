@@ -2,6 +2,8 @@
 
 本目录放了一组**可以“扫描导入”的素材图**（`fig_1.png` … `fig_5.png`），配套 [docs/tutorial.md](../tutorial.md) 第 7 节。
 
+把它们导入为 Figure 后，每张图的初始属性（状态、重要度、面板、溯源、界面显示位置）已整理在 [INITIALISATION.md](INITIALISATION.md)。
+
 ## 如何导入
 
 1. 打开 Figure 工作台，进入任意工作区。

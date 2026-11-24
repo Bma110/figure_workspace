@@ -10,5 +10,6 @@
 | [roadmap.md](roadmap.md) | 路线图：阶段计划、决策记录、已确认的问题 |
 | [tutorial.md](tutorial.md) | 入门教程：从启动到建第一张图、查看稿件样式的常见操作与概念 |
 | [tutorial_scans/README.md](tutorial_scans/README.md) | 可被“扫描导入”的教程素材图（`fig_1.png` … `fig_5.png`） |
+| [tutorial_scans/INITIALISATION.md](tutorial_scans/INITIALISATION.md) | 素材图导入后的初始属性：状态、重要度、面板（子图）、溯源，以及界面里怎么显示 |
 
 版本历史见根目录 [CHANGELOG.md](../CHANGELOG.md)；用法见根目录 [README.md](../README.md)。
