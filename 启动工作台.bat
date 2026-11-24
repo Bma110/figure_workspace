@@ -19,7 +19,7 @@ if not defined FW_ROOT (
 if not defined FW_ROOT set "FW_ROOT=%USERPROFILE%\ResearchData"
 
 REM 3) Show a small banner if present.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "scripts\print_startup_banner.ps1" -Banner >nul 2>nul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "scripts\print_startup_banner.ps1" -Banner
 
 REM 4) Modern splash if modern terminal is available.
 call :show_modern_splash
