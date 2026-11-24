@@ -8,8 +8,11 @@ def test_workspace_and_figure_folders():
     assert wf.exists() and wf.name == "SA-Osteomyelitis"
     assert (wf / "原始数据").is_dir()
     assert (wf / ".trash").is_dir()
-    ff = storage.figure_folder("SA-Osteomyelitis", "Figure 1")
+    ff = storage.ensure_dir(wf, "Figure1")
     assert ff.exists() and ff.name == "Figure1"
+    # 路径函数不建目录，避免删除后又把目录建回来
+    assert not storage.workspace_dir("NOT-CREATED").exists()
+    assert not storage.resolve_in_workspace(wf, "Figure2").exists()
 
 
 def test_save_upload_returns_sha_and_unique():

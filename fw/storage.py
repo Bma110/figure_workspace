@@ -5,36 +5,36 @@ from pathlib import Path
 from fw import config, naming
 
 
+def workspace_dir(code: str) -> Path:
+    """工作区目录路径。不建目录，供删除、改名等场景使用。"""
+    return config.root_dir() / code
+
+
 def workspace_folder(code: str) -> Path:
-    p = config.root_dir() / code
+    p = workspace_dir(code)
     p.mkdir(parents=True, exist_ok=True)
     (p / "原始数据").mkdir(exist_ok=True)
     (p / ".trash").mkdir(exist_ok=True)
     return p
 
 
-def figure_folder(ws_code: str, label: str) -> Path:
-    """Figure 的文件夹：<工作区>/<label 去空格>。返回并确保存在。"""
-    p = workspace_folder(ws_code) / naming.folder_slug(label)
-    p.mkdir(exist_ok=True)
+def ensure_dir(ws_folder: Path, rel: str) -> Path:
+    """按工作区内相对路径建目录（含父级）。越界抛 ValueError。"""
+    p = _dest_dir(ws_folder, rel)
+    p.mkdir(parents=True, exist_ok=True)
     return p
 
 
-def panel_folder(ws_code: str, figure_label: str, panel_label: str) -> Path:
-    p = figure_folder(ws_code, figure_label) / naming.folder_slug(panel_label)
-    p.mkdir(exist_ok=True)
-    return p
-
-
-def figure_dir(ws_code: str, label: str) -> Path:
-    """Figure 文件夹路径。不建 Figure 目录本身（工作区及 .trash 仍确保存在），
-    供删除等场景取路径，避免调用时把已删的目录又建回来。"""
-    return workspace_folder(ws_code) / naming.folder_slug(label)
-
-
-def panel_dir(ws_code: str, figure_label: str, panel_label: str) -> Path:
-    """面板文件夹路径。同样不建目录。"""
-    return figure_dir(ws_code, figure_label) / naming.folder_slug(panel_label)
+def discard_dir(ws_folder: Path, target: Path) -> None:
+    """丢弃刚建出的半成品目录：空目录直接删，非空移入 .trash。"""
+    ws = ws_folder.resolve()
+    src = target.resolve()
+    if not src.is_relative_to(ws) or src == ws or not src.is_dir():
+        return
+    try:
+        src.rmdir()
+    except OSError:
+        move_dir_to_trash(ws_folder, src)
 
 
 def _list_names(folder: Path) -> list[str]:

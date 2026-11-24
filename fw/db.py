@@ -1,6 +1,6 @@
 """SQLite：连接、建表、实体读写。相对路径基于工作区文件夹。"""
 import sqlite3
-from fw import config
+from fw import config, naming
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS workspace(
@@ -15,10 +15,12 @@ CREATE TABLE IF NOT EXISTS node(
  parent_id INTEGER REFERENCES node(id) ON DELETE CASCADE,
  kind TEXT NOT NULL CHECK(kind IN ('figure','panel')),
  label TEXT NOT NULL DEFAULT '',
+ folder TEXT NOT NULL DEFAULT '',
  title TEXT NOT NULL DEFAULT '',
  status TEXT NOT NULL DEFAULT 'candidate' CHECK(status IN ('candidate','adopted','rejected','redo')),
  importance TEXT NOT NULL DEFAULT 'normal' CHECK(importance IN ('key','normal','aux')),
  note TEXT NOT NULL DEFAULT '',
+ methods TEXT NOT NULL DEFAULT '',
  preview_rel TEXT,
  archived INTEGER NOT NULL DEFAULT 0,
  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
@@ -58,16 +60,20 @@ def connect(path=None) -> sqlite3.Connection:
 
 
 # 老库缺的列：CREATE TABLE IF NOT EXISTS 不会补，需显式 ALTER。
-_COLUMNS = {"node": {"archived": "INTEGER NOT NULL DEFAULT 0"}}
+_COLUMNS = {"node": {"archived": "INTEGER NOT NULL DEFAULT 0",
+                     "methods": "TEXT NOT NULL DEFAULT ''",
+                     "folder": "TEXT NOT NULL DEFAULT ''"}}
 
 
 def _migrate(con):
-    """幂等补列：给已存在的旧表加新列。"""
+    """幂等补列：给已存在的旧表加新列；folder 为空的老节点回填为 label 的 slug（与旧磁盘布局一致）。"""
     for table, cols in _COLUMNS.items():
         have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
         for col, decl in cols.items():
             if col not in have:
                 con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    for r in con.execute("SELECT id, label FROM node WHERE folder=''").fetchall():
+        con.execute("UPDATE node SET folder=? WHERE id=?", (naming.folder_slug(r["label"]), r["id"]))
 
 
 class conn:
@@ -111,10 +117,12 @@ def set_workspace_archived(con, wid, archived):
 
 # ---------- node ----------
 def create_node(con, workspace_id, kind, label, title, parent_id=None, status="candidate",
-                importance="normal") -> int:
+                importance="normal", note="", methods="", folder="") -> int:
     cur = con.execute(
-        "INSERT INTO node(workspace_id,parent_id,kind,label,title,status,importance) VALUES(?,?,?,?,?,?,?)",
-        (workspace_id, parent_id, kind, label, title, status, importance))
+        "INSERT INTO node(workspace_id,parent_id,kind,label,title,status,importance,note,methods,folder)"
+        " VALUES(?,?,?,?,?,?,?,?,?,?)",
+        (workspace_id, parent_id, kind, label, title, status, importance, note, methods,
+         folder or naming.folder_slug(label)))
     return cur.lastrowid
 
 
@@ -123,9 +131,10 @@ def get_node(con, nid):
 
 
 def update_node(con, nid, label=None, title=None, status=None, importance=None, note=None,
-                preview_rel=None, archived=None):
+                preview_rel=None, archived=None, methods=None, folder=None):
     sets, vals = [], []
-    for col in ("label", "title", "status", "importance", "note", "preview_rel", "archived"):
+    for col in ("label", "title", "status", "importance", "note", "methods", "folder",
+                "preview_rel", "archived"):
         v = locals()[col]
         if v is not None:
             sets.append(f"{col}=?")
@@ -166,6 +175,32 @@ def tree(con, wid, include_archived=False):
         return kept
 
     return build(roots)
+
+
+def node_rel_dir(con, node) -> str | None:
+    """节点文件夹相对工作区的路径（posix）。figure 为 <folder>，面板为父链/<folder>。"""
+    if not node:
+        return None
+    if node["kind"] == "figure":
+        return node["folder"]
+    parent = con.execute("SELECT * FROM node WHERE id=?", (node["parent_id"],)).fetchone() \
+        if node["parent_id"] else None
+    up = node_rel_dir(con, parent)
+    return f"{up}/{node['folder']}" if up else None
+
+
+def repath_prefix(con, wid, old: str, new: str) -> None:
+    """目录改名后同步已登记的相对路径：文件与预览。"""
+    if old == new:
+        return
+    con.execute(
+        "UPDATE file_item SET rel_path=? || substr(rel_path, ?) "
+        "WHERE workspace_id=? AND (rel_path=? OR rel_path LIKE ?)",
+        (new, len(old) + 1, wid, old, old + "/%"))
+    con.execute(
+        "UPDATE node SET preview_rel=? || substr(preview_rel, ?) "
+        "WHERE workspace_id=? AND (preview_rel=? OR preview_rel LIKE ?)",
+        (new, len(old) + 1, wid, old, old + "/%"))
 
 
 def ancestors(con, nid):

@@ -18,6 +18,21 @@ def folder_slug(label: str) -> str:
     return s or "untitled"
 
 
+RESERVED_FOLDERS = ("原始数据", ".trash")
+
+
+def allocate_folder(label: str, taken) -> str:
+    """为 label 分配文件夹名：不与 taken 及保留名冲突（大小写不敏感，适配 Windows）。"""
+    base = folder_slug(label)
+    names = {t.casefold() for t in taken} | {r.casefold() for r in RESERVED_FOLDERS}
+    if base.casefold() not in names:
+        return base
+    i = 2
+    while f"{base} ({i})".casefold() in names:
+        i += 1
+    return f"{base} ({i})"
+
+
 def unique_name(name: str, existing: list[str]) -> str:
     """若 name 已存在于 existing，追加 ' (n)' 直到不冲突。"""
     if name not in existing:

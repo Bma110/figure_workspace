@@ -29,9 +29,10 @@ def test_migrate_adds_archived_to_existing_db(client):
 
     with db.conn() as c:
         cols = {r["name"] for r in c.execute("PRAGMA table_info(node)")}
-        assert "archived" in cols
-        row = c.execute("SELECT archived FROM node WHERE label='Figure 1'").fetchone()
+        assert "archived" in cols and "folder" in cols
+        row = c.execute("SELECT archived, folder FROM node WHERE label='Figure 1'").fetchone()
         assert row["archived"] == 0  # 老行补默认值，不丢数据
+        assert row["folder"] == "Figure1"  # 回填为旧版磁盘上的文件夹名
 
     # 幂等：再开一次不报错
     with db.conn() as c:
