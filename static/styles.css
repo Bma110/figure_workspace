@@ -163,9 +163,15 @@ form#figForm { margin-top:6px; }
 .j-frame img { max-width:100%; max-height:360px; }
 .j-frame .muted-sm { color:var(--soft); font-style:italic; }
 .j-caption { font-size:14px; margin:10px 0 0; text-align:justify; color:#2b2b2b; }
-.j-panels { list-style:none; padding:0; margin:8px 0 0; font-size:14px; color:#333; }
-.j-panels li { margin:2px 0; }
+/* 子图：视觉化的子图块，保持稿件排版，不再是无次序文本。 */
+.j-subs { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin:12px 0 0; }
+.j-subfig { margin:0; border:1px solid var(--rule); background:#fff; padding:8px; }
+.j-subfig:hover { border-color:#9a8b6c; }
+.j-subframe { min-height:120px; display:flex; align-items:center; justify-content:center; background:#faf8f2; }
+.j-subframe img { max-width:100%; max-height:220px; }
+.j-subfig figcaption { font-size:12px; line-height:1.6; margin:8px 0 0; color:#4a463d; text-align:left; }
 .j-sub { display:inline-block; width:22px; font-weight:700; font-family:"Times New Roman",serif; }
+.j-subempty { color:var(--soft); font-style:italic; font-size:12px; }
 .j-note { font-size:13px; color:var(--soft); margin:10px 0 0; }
 .j-empty { text-align:center; color:var(--soft); font-style:italic; padding:40px 0; }
 @media (max-width:900px) { .journal { padding:32px 22px 44px; } .j-abstract { margin:0; } }

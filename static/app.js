@@ -196,10 +196,21 @@ function journalHtml(figs) {
     </section>`;
   if (!figs.length) return head + '<p class="j-empty">尚无 Figure，点“新建 Figure”开始编排。</p>';
   const entries = figs.map((f) => {
-    const panels = (f.children || []).map((c, j) =>
-      `<li><span class="j-sub">${String.fromCharCode(97 + j)}</span> ${esc(c.label)}${c.title ? '：' + esc(c.title) : ''}</li>`).join('');
+    const subs = (f.children || []).map((c, j) => {
+      const letter = String.fromCharCode(97 + j);
+      return `<figure class="j-subfig" onclick="event.stopPropagation(); selectNode(${c.id})">
+          <div class="j-subframe">${journalThumb(c)}</div>
+          <figcaption><span class="j-sub">${letter}</span> <b>${esc(c.label)}</b>${c.title ? '：' + esc(c.title) : ''}</figcaption>
+        </figure>`;
+    }).join('');
+    const subCount = panelCount(f);
     const keywords = (f.tags || []).map(esc).join('；');
-    const source = f.file_count ? `来源 ${f.file_count} 个文件` : '尚未上传源文件';
+    const files = fileTotal(f);
+    const source = files
+      ? `来源 ${files} 个文件${subCount ? '（含子图）' : ''}`
+      : '尚未上传源文件';
+    // 主图没有预览、但有子图时，不再留一个空框，直接排子图。
+    const mainFrame = f.preview_rel || !subs ? `<div class="j-frame">${journalThumb(f)}</div>` : '';
     return `
       <article class="j-fig s-${esc(f.status)}${state.selectedNode === f.id ? ' selected' : ''}" onclick="selectNode(${f.id})">
         <div class="j-fig-head">
@@ -209,9 +220,9 @@ function journalHtml(figs) {
           ${f.archived ? '<span class="j-hidden">[已隐藏]</span>' : ''}
         </div>
         ${f.title ? `<h3 class="j-fig-title">${esc(f.title)}</h3>` : ''}
-        <div class="j-frame">${thumbHtml(f)}</div>
+        ${mainFrame}
+        ${subs ? `<div class="j-subs" aria-label="子图">${subs}</div>` : ''}
         <p class="j-caption">${f.title ? esc(f.title) + '。' : ''}${source}${keywords ? '。关键词：' + keywords : ''}。</p>
-        ${panels ? `<ol class="j-panels">${panels}</ol>` : ''}
         ${f.note ? `<p class="j-note"><i>图注：</i>${esc(f.note)}</p>` : ''}
         ${f.methods ? `<p class="j-note"><i>统计与方法：</i>${esc(f.methods)}</p>` : ''}
       </article>`;
@@ -231,15 +242,31 @@ function cardHtml(n) {
       <span class="imp-${esc(n.importance)}">${n.importance === 'key' ? '★' : ''}${IMP[n.importance] || ''}</span>
       ${(n.tags || []).map(t => `<span class="tagchip">${esc(t)}</span>`).join('')}
     </div>
-    <div class="card-meta">↑ ${n.file_count} 文件 · ${(n.children || []).length} 面板</div>
+    <div class="card-meta">↑ ${fileTotal(n)} 文件 · ${panelCount(n)} 面板</div>
   </div>`;
+}
+
+function fileTotal(n) {
+  return (n.file_count || 0) + (n.children || []).reduce((sum, c) => sum + fileTotal(c), 0);
+}
+
+function panelCount(n) {
+  return (n.children || []).reduce((sum, c) => sum + 1 + panelCount(c), 0);
+}
+
+function previewUrl(rel) {
+  const path = rel.split('/').map(encodeURIComponent).join('/');
+  return `/api/preview/${encodeURIComponent(state.wsCode)}/${path}`;
 }
 
 function thumbHtml(n) {
   if (!n.preview_rel) return '<span class="thumb-empty">无预览<small>可粘贴截图</small></span>';
-  const rel = n.preview_rel.split('/').map(encodeURIComponent).join('/');
-  const url = `/api/preview/${encodeURIComponent(state.wsCode)}/${rel}`;
-  return `<img src="${url}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
+  return `<img src="${previewUrl(n.preview_rel)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
+}
+
+function journalThumb(n) {
+  if (!n.preview_rel) return '<span class="j-subempty">暂无预览</span>';
+  return `<img src="${previewUrl(n.preview_rel)}" alt="" onerror="this.replaceWith(document.createTextNode('预览读取失败'))">`;
 }
 
 window.selectNode = async function (id) {
@@ -344,7 +371,7 @@ function renderDrawer(n) {
       <button class="btn" onclick="toggleArchivedNode(${n.id},${n.archived ? 0 : 1})">${n.archived ? '取消隐藏' : '隐藏'}</button>
     </div>
     <div class="fig-thumb fig-thumb--lg">${thumbHtml(n)}</div>
-    ${isFig ? `<div class="section-label">面板</div>
+    ${isFig ? `<div class="section-label">面板（子图）</div>
       <div class="actions">
         ${(n.children || []).map(c => `<button class="btn" onclick="selectNode(${c.id})">${esc(c.label)}</button>`).join('')}
         <button class="btn" onclick="addPanel(${n.id})">+ 面板</button>
@@ -356,6 +383,9 @@ function renderDrawer(n) {
     </div>
     <div class="section-label">来源文件</div>
     <div>${(n.files || []).map(fileRow).join('') || '<span class="muted-sm">无</span>'}</div>
+    ${isFig && (n.children || []).some(c => fileTotal(c) > 0)
+      ? `<p class="muted-sm">子图源文件计入本图：${(n.children || []).map(c => fileTotal(c) > 0 ? `${esc(c.label)}（${fileTotal(c)}）` : '').filter(Boolean).join('、')}。</p>`
+      : ''}
     <button class="btn" onclick="uploadTo(${n.id})">+ 上传源文件</button>
     <div class="section-label">溯源全链</div>
     <div class="chain">${chainHtml(n)}</div>

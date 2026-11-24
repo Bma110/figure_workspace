@@ -54,6 +54,21 @@ def test_upload_to_panel_lands_under_figure_subfolder(client):
     assert (config.root_dir() / "P5" / "Figure2" / "2A" / "IL6.xlsx").exists()
 
 
+def test_panel_preview_lands_in_panel_folder(client):
+    client.post("/api/workspaces", json={"code": "P8", "name": "p"})
+    fig = client.post("/api/workspaces/P8/nodes", json={"kind": "figure", "label": "Figure 4",
+                                                        "title": "x"}).json()["node"]
+    pid = client.post("/api/workspaces/P8/nodes", json={"kind": "panel", "label": "4A",
+                                                        "parent_id": fig["id"]}).json()["node"]["id"]
+    r = client.post(f"/api/nodes/{pid}/preview",
+                    files={"file": ("preview.png", b"\x89PNGdata", "image/png")})
+    assert r.status_code == 200
+    node = client.get(f"/api/nodes/{pid}").json()["node"]
+    assert node["preview_rel"] == "Figure4/4A/preview.png"
+    from fw import config
+    assert (config.root_dir() / "P8" / "Figure4" / "4A" / "preview.png").exists()
+
+
 def test_serve_preview_and_reject_escapes(client):
     client.post("/api/workspaces", json={"code": "P6", "name": "p"})
     nid = client.post("/api/workspaces/P6/nodes", json={"kind": "figure", "label": "Figure 1",

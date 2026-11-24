@@ -330,7 +330,13 @@ def get_node(nid: int):
         d["logs"] = [dict(x) for x in db.node_logs(con, nid)]
         d["tags"] = [x["name"] for x in db.node_tags(con, nid)]
         d["ancestors"] = db.ancestors(con, nid)
-        d["children"] = [dict(x) for x in db.children(con, nid=nid)]
+        # 子图在抽屉里要显示文件数，前端才能把子图文件计入本图。
+        d["children"] = []
+        for x in db.children(con, nid=nid):
+            c = dict(x)
+            c["file_count"] = db.file_count(con, x["id"])
+            c["tags"] = [t["name"] for t in db.node_tags(con, x["id"])]
+            d["children"].append(c)
         return {"node": d}
 
 
@@ -420,10 +426,12 @@ async def save_preview(nid: int, file: UploadFile = File(...)):
         ws_folder = storage.workspace_folder(ws["code"])
         if n["preview_rel"]:
             storage.move_to_trash(ws_folder, n["preview_rel"])
-        dest_rel = db.node_rel_dir(con, n) if n["kind"] == "figure" else "原始数据"
-        if dest_rel:
-            storage.ensure_dir(ws_folder, dest_rel)
-        rel = storage.save_upload(ws_folder, data, "preview.png", dest_rel=dest_rel or "")
+        # 预览图跟着节点走：Figure 落自己的文件夹，面板落父 Figure 下的面板子文件夹。
+        dest_rel = db.node_rel_dir(con, n)
+        if not dest_rel:
+            raise HTTPException(400, "节点缺少文件夹，无法保存预览")
+        storage.ensure_dir(ws_folder, dest_rel)
+        rel = storage.save_upload(ws_folder, data, "preview.png", dest_rel=dest_rel)
         db.update_node(con, nid, preview_rel=rel)
         return {"ok": True, "preview_rel": rel}
 

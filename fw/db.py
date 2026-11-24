@@ -155,6 +155,12 @@ def children(con, nid=None, workspace_id=None):
                        (workspace_id,)).fetchall()
 
 
+def file_count(con, nid) -> int:
+    """节点直挂的文件数（不含子图）。"""
+    return con.execute(
+        "SELECT COUNT(*) c FROM file_item WHERE node_id=?", (nid,)).fetchone()["c"]
+
+
 def tree(con, wid, include_archived=False):
     rows = con.execute("SELECT * FROM node WHERE workspace_id=? ORDER BY id", (wid,)).fetchall()
     by_parent = {}
@@ -168,8 +174,7 @@ def tree(con, wid, include_archived=False):
             if not include_archived and n["archived"]:
                 continue  # 隐藏的节点连同其子树整体剪掉
             n["children"] = build(by_parent.get(n["id"], []))
-            n["file_count"] = con.execute(
-                "SELECT COUNT(*) c FROM file_item WHERE node_id=?", (n["id"],)).fetchone()["c"]
+            n["file_count"] = file_count(con, n["id"])
             n["tags"] = [t["name"] for t in node_tags(con, n["id"])]
             kept.append(n)
         return kept
